@@ -12,6 +12,7 @@ La build statica è stata servita localmente su Windows con Python 3.12.14 e ape
 | Sintassi/moduli | `node --check src/app.js` e `node --check src/core.js` | Superato |
 | UI locale | Creata sessione “Verifica locale”; attestazione registrata | Osservato |
 | Timeline e ricerca | Nota locale salvata e visibile a `00:00:14`; ricerca “verifica” ha restituito titolo e nota con salto | Osservato |
+| UI sessione | La rinomina “Verifica locale” → “Verifica UI” è stata salvata e riflessa nella vista | Osservato |
 | ASR: download esplicito | Pulsante ASR ha caricato Transformers.js 3.8.1 e `Xenova/whisper-tiny`; UI ha mostrato `Motore: pronto` e “nessun audio è stato inviato”; la stima archivio è passata a 104.9 MB | Osservato in browser integrato Windows |
 | ASR: assenza media | “Trascrivi blocchi confermati” senza blocchi ha rifiutato l’avvio con “Non ci sono blocchi microfono confermati da trascrivere” | Osservato |
 | Archivio export | Test Node costruisce ZIP con `manifest.json`, `trascrizione.txt` e media sintetico; la build usa streaming verso una destinazione scelta in Chrome, con fallback in memoria limitato | Superato sinteticamente |
