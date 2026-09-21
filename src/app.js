@@ -1,0 +1,183 @@
+import { CHUNK_MS, DiaryStore, closeRecording, formatTime, gapFor, id, isoNow, nextRecording, safeFileName, searchDocuments, sessionOffset, transcriptText } from "./core.js";
+
+const state = { store: null, view: "home", selectedId: null, display: null, mic: null, displayInfo: null, tests: { system: null, mic: null }, meters: new Map(), recording: null, segmenters: [], capturing: false, stopping: false };
+const view = document.querySelector("#view"), dialog = document.querySelector("#dialog"), storageStatus = document.querySelector("#storage-status");
+const esc = (value = "") => String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]);
+const byId = (id) => document.getElementById(id);
+const localDate = (iso) => iso ? new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso)) : "—";
+const streamState = (stream) => stream?.getTracks().some((track) => track.readyState === "live") ? "live" : "assente";
+
+async function init() {
+  if (!window.isSecureContext) showNotice("Questa app richiede localhost o HTTPS per chiedere le catture.", "danger");
+  try { state.store = await new DiaryStore().open(); await updateStorage(); await recoverInterrupted(); await render(); }
+  catch (error) { view.innerHTML = `<div class="callout danger"><strong>Archivio locale non disponibile.</strong><br>${esc(error.message)}</div>`; }
+  document.addEventListener("click", onClick); document.addEventListener("submit", onSubmit);
+  navigator.serviceWorker?.register("sw.js").catch(() => {});
+}
+
+async function updateStorage() {
+  if (!navigator.storage?.estimate) { storageStatus.textContent = "Archivio locale nel browser"; return; }
+  const { usage = 0, quota = 0 } = await navigator.storage.estimate();
+  storageStatus.textContent = `Archivio locale: ${(usage / 1024 / 1024).toFixed(1)} MB${quota ? ` di ${(quota / 1024 / 1024).toFixed(0)} MB` : ""}`;
+}
+
+async function recoverInterrupted() {
+  const sessions = await state.store.all("sessions");
+  for (const session of sessions.filter((item) => item.state === "aperta")) {
+    const recordings = await state.store.bySession("recordings", session.id);
+    for (const recording of recordings.filter((item) => item.status === "in-corso")) {
+      const closed = closeRecording(recording, session, "interrotta", "riapertura dopo chiusura o crash");
+      await state.store.put("recordings", closed);
+      await state.store.put("gaps", gapFor(closed, session, "intervallo dopo chiusura non acquisito"));
+      session.state = "interrotta/in attesa di scelta"; session.updatedAt = isoNow(); await state.store.put("sessions", session);
+    }
+  }
+}
+
+function showNotice(text, tone = "") { const current = document.querySelector("#notice"); if (current) current.remove(); view.insertAdjacentHTML("afterbegin", `<div id="notice" class="callout ${tone}">${esc(text)}</div>`); }
+function setView(name) { state.view = name; document.querySelectorAll(".nav").forEach((button) => button.classList.toggle("active", button.dataset.view === name)); render(); }
+
+async function render() {
+  if (!state.store) return;
+  if (state.view === "home") return renderHome();
+  if (state.view === "capture") return renderCapture();
+  if (state.view === "search") return renderSearch();
+  return renderVerification();
+}
+
+async function renderHome() {
+  const sessions = (await state.store.all("sessions")).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  if (!sessions.length) { view.innerHTML = document.querySelector("#empty-template").innerHTML; return; }
+  view.innerHTML = `<header><div><h1>Sessioni</h1><p class="muted">Episodi di lavoro locali, ordinati dall’ultimo aggiornamento.</p></div><button data-action="new-session">Nuova sessione</button></header><div class="session-list">${sessions.map((session) => `<article class="session-row" data-action="open-session" data-id="${session.id}"><div class="grow"><strong>${esc(session.title)}</strong><p class="small muted">${localDate(session.updatedAt)} · ${session.timezone}</p></div><span class="status ${session.state === "conclusa" ? "ok" : "warn"}">${esc(session.state)}</span></article>`).join("")}</div>`;
+}
+
+async function selectedSession() { return state.selectedId ? state.store.get("sessions", state.selectedId) : null; }
+async function renderCapture() {
+  const session = await selectedSession();
+  if (!session) { view.innerHTML = `<div class="empty"><h2>Scegli una sessione</h2><p>La cattura appartiene sempre a una sessione nominabile.</p><button data-action="new-session">Crea sessione</button></div>`; return; }
+  const recordings = await state.store.bySession("recordings", session.id), gaps = await state.store.bySession("gaps", session.id), notes = await state.store.bySession("notes", session.id), events = await state.store.bySession("events", session.id);
+  const allChunks = (await state.store.all("chunks")).filter((chunk) => chunk.sessionId === session.id).sort((a, b) => a.startMs - b.startMs);
+  const active = state.recording?.sessionId === session.id;
+  const hasDisplayAudio = !!state.display?.getAudioTracks().length;
+  const displaySurface = state.displayInfo?.surface || "non selezionato";
+  const completeReady = state.display && state.mic && displaySurface === "monitor" && hasDisplayAudio && state.tests.system?.passed && state.tests.mic?.passed;
+  const items = [...recordings.map((r) => ({ type: "Registrazione", at: r.offsetStartMs, text: `${r.mode} · ${r.status}${r.cause ? ` (${r.cause})` : ""}`, gap: r.status === "interrotta" })), ...gaps.map((g) => ({ type: "Lacuna", at: g.startMs, text: g.cause, gap: true })), ...events.map((e) => ({ type: "Evento", at: e.startMs ?? 0, text: e.text })), ...notes.map((n) => ({ type: "Nota", at: n.startMs ?? 0, text: n.text }))].sort((a, b) => a.at - b.at);
+  view.innerHTML = `<header><div><h1>${esc(session.title)}</h1><p class="muted">${esc(session.state)} · inizio ${localDate(session.startedAt)}</p></div><div class="actions"><button class="secondary compact" data-action="export-session">Esporta</button><button class="secondary compact" data-action="delete-session">Rimuovi</button></div></header>
+  ${session.attestation ? `<div class="callout">Attestazione resa il ${localDate(session.attestation.at)}. Non certifica policy o consenso di altre persone.</div>` : `<div class="callout warn"><strong>Attestazione richiesta.</strong> Prima di una cattura, dichiara di aver verificato gli obblighi applicabili.</div>`}
+  <div class="grid"><section class="card"><h2>Preflight dei flussi</h2><p class="muted">Scegli il monitor e l’audio del computer in Chrome; il microfono è richiesto separatamente.</p>
+  ${streamRow("Monitor + audio computer", state.display, state.displayInfo ? `${displaySurface}; audio ${hasDisplayAudio ? "presente" : "assente"}` : "non richiesto", "request-display")}
+  ${streamRow("Microfono", state.mic, streamState(state.mic), "request-mic")}
+  <div class="actions"><button class="secondary compact" data-action="sample-system" ${!state.display || !hasDisplayAudio ? "disabled" : ""}>Prova audio computer</button><button class="secondary compact" data-action="sample-mic" ${!state.mic ? "disabled" : ""}>Prova microfono</button></div>
+  ${testRow("Sistema", state.tests.system)}${testRow("Microfono", state.tests.mic)}
+  <label class="small"><input id="reduced-optin" type="checkbox" ${completeReady ? "" : ""}> Accetto esplicitamente una registrazione <strong>ridotta</strong> se la prova completa non è pronta.</label>
+  <div class="actions">${!session.attestation ? `<button data-action="attest">Rendi attestazione</button>` : active ? `<button class="danger" data-action="pause">Pausa / ferma tratto</button><button class="secondary" data-action="conclude">Concludi sessione</button>` : `<button data-action="start-capture" ${session.state === "conclusa" ? "disabled" : ""}>Avvia cattura</button><button class="secondary" data-action="conclude" ${session.state === "conclusa" ? "disabled" : ""}>Concludi sessione</button>`}</div>
+  ${active ? `<p class="small"><span class="status ok">in corso</span> Salvataggio a blocchi autonomi di ${CHUNK_MS / 1000}s; i blocchi diventano confermati solo dopo verifica di riproducibilità.</p>` : `<p class="small muted">${completeReady ? "Modalità completa pronta." : "La modalità completa richiede monitor, due tracce audio e i due riascolti positivi."}</p>`}</section>
+  <section class="card"><h2>Stato e recupero</h2><div id="capture-status">${renderCaptureStatus(recordings)}</div><p class="small muted">Una chiusura o perdita di flusso crea un’interruzione e non viene mai rappresentata come contenuto acquisito.</p></section>
+  <section class="card"><h2>Aggiungi contesto</h2><form data-form="note"><label>Nota libera<textarea name="text" required placeholder="Riflessione o contesto, non un segmento ASR"></textarea></label><button>Salva nota</button></form><form data-form="event"><label>Evento fattuale<textarea name="text" required placeholder="Ad esempio: decisione presa"></textarea></label><button class="secondary">Aggiungi evento</button></form></section>
+  <section class="card"><h2>Trascrizione locale</h2><p>${renderAsrStatus(session)}</p><p class="small muted">Il pacchetto non incorpora un modello né scarica codice o audio. Importa solo un risultato ASR prodotto localmente e temporalmente; l’app conserva provenienza e copertura.</p><form data-form="transcript"><label>Segmento temporizzato (testo riconosciuto o correzione)<textarea name="text" required placeholder="Testo"></textarea></label><div class="grid"><label>Inizio (secondi)<input name="start" type="number" min="0" step="0.1" required></label><label>Fine (secondi)<input name="end" type="number" min="0" step="0.1" required></label></div><label>Provenienza<select name="source"><option value="manuale-locale">correzione manuale locale</option><option value="asr-locale-importato">ASR locale importato</option></select></label><button class="secondary">Salva segmento</button></form></section>
+  <section class="card wide"><h2>Riproduzione dei blocchi</h2>${allChunks.length ? `<div class="session-list">${allChunks.map((chunk) => `<div class="split"><div><span class="status ${chunk.status === "confermato" ? "ok" : "warn"}">${esc(chunk.status)}</span> <strong>${esc(chunk.stream)}</strong> <span class="small muted">${formatTime(chunk.startMs)}–${formatTime(chunk.endMs)} · ${(chunk.bytes / 1024 / 1024).toFixed(2)} MB</span></div><button class="secondary compact" data-action="play-block" data-id="${chunk.id}">Riproduci</button></div>`).join("")}</div>` : `<p class="muted">I blocchi salvati appariranno qui. Solo quelli confermati sono dichiarati riproducibili.</p>`}</section>
+  <section class="card wide"><h2>Timeline della sessione</h2>${items.length ? `<div class="timeline">${items.map((item) => `<div class="timeline-item ${item.gap ? "gap" : ""}"><span class="chip">${formatTime(item.at)}</span><strong> ${item.type}</strong><p>${esc(item.text)}</p></div>`).join("")}</div>` : `<p class="muted">Ancora nessun tratto, nota o evento.</p>`}</section></div>`;
+  refreshMeters();
+}
+function streamRow(label, stream, detail, action) { const live = streamState(stream) === "live"; return `<div class="stream"><i class="dot ${live ? "live" : ""}"></i><div><strong>${label}</strong><div class="small muted">${esc(detail)}</div><div class="meter"><i id="meter-${action}"></i></div></div><button class="secondary compact" data-action="${action}">${live ? "Rifai" : "Richiedi"}</button></div>`; }
+function testRow(label, test) { return `<p class="small"><span class="status ${test?.passed ? "ok" : test ? "warn" : ""}">${label}: ${test?.passed ? "riascolto confermato" : test?.url ? "campione pronto" : "non verificato"}</span>${test?.url ? ` <button class="secondary compact" data-action="play-test" data-kind="${label === "Sistema" ? "system" : "mic"}">Riascolta</button><button class="compact" data-action="confirm-test" data-kind="${label === "Sistema" ? "system" : "mic"}">Segna riconoscibile</button>` : ""}</p>`; }
+function renderCaptureStatus(recordings) { const latest = recordings.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]; return latest ? `<p><span class="status ${latest.status === "interrotta" ? "fail" : latest.status === "terminata" ? "ok" : "warn"}">${esc(latest.status)}</span></p><p class="small">${esc(latest.cause || "Nessuna causa di arresto")}</p>` : `<p class="muted">Nessun tratto salvato.</p>`; }
+function renderAsrStatus(session) { return session.asrStatus ? `Stato: <strong>${esc(session.asrStatus)}</strong>.` : "Stato: <strong>in attesa</strong>. Nessun modello è stato scaricato automaticamente."; }
+
+async function renderSearch() {
+  view.innerHTML = `<header><div><h1>Ricerca</h1><p class="muted">Titoli, note, eventi e trascrizioni locali.</p></div></header><section class="card"><form data-form="search"><label>Termine<input name="query" autofocus placeholder="Cerca nella cronologia"></label><div class="grid"><label>Da<input name="from" type="date"></label><label>A<input name="to" type="date"></label></div><button>Cerca</button></form><div id="results" class="session-list"></div></section>`;
+}
+async function renderVerification() {
+  view.innerHTML = `<header><div><h1>Verifica e limiti</h1><p class="muted">Lo sviluppo locale non sostituisce le prove sulla build Chrome/macOS.</p></div></header><section class="card"><h2>Stato onesto della consegna</h2><ul class="checklist"><li><strong>Fattibilità breve dei tre flussi:</strong> positiva, riferita dall’utente; non osservata dall’agente.</li><li><strong>Uso reale con dati aziendali o persone:</strong> bloccato dal gate policy, ancora senza evidenza aziendale.</li><li><strong>AC1–AC10:</strong> richiedono la build sul Mac target, incluse prove di due ore, offline, quota, crash/revoca/sleep, ASR e riapertura export.</li></ul><p>Il preflight controlla selezione monitor e presenza delle tracce; un indicatore live non è prova di contenuto. La prova guidata conserva solo il suo esito, non i campioni.</p><p><a href="docs/verification/capture-preflight-mac-reported-2026-09-22.md" target="_blank">Apri resoconto della prova breve</a></p></section>`;
+}
+
+async function onClick(event) {
+  const button = event.target.closest("[data-action],.nav"); if (!button) return;
+  if (button.classList.contains("nav")) return setView(button.dataset.view);
+  const action = button.dataset.action;
+  if (action === "new-session") return openNewSession();
+  if (action === "create-session") return createSession(dialog.querySelector("[name=title]")?.value);
+  if (action === "open-session") { state.selectedId = button.dataset.id; return setView("capture"); }
+  if (action === "attest") return openAttestation();
+  if (action === "request-display") return acquireDisplay();
+  if (action === "request-mic") return acquireMic();
+  if (action === "sample-system") return sample("system");
+  if (action === "sample-mic") return sample("mic");
+  if (action === "play-test") return playTest(button.dataset.kind);
+  if (action === "confirm-test") return confirmTest(button.dataset.kind);
+  if (action === "start-capture") return startCapture();
+  if (action === "pause") return stopCapture("terminata", "pausa richiesta");
+  if (action === "conclude") return concludeSession();
+  if (action === "export-session") return exportSession();
+  if (action === "play-block") return playBlock(button.dataset.id);
+  if (action === "delete-session") return confirmDelete();
+}
+
+async function onSubmit(event) {
+  const form = event.target; if (!form.dataset.form) return; event.preventDefault();
+  const data = new FormData(form);
+  if (form.dataset.form === "new-session") return createSession(data.get("title"));
+  const session = await selectedSession(); if (!session) return;
+  if (form.dataset.form === "attest") { session.attestation = { at: isoNow(), textVersion: "v1", declaration: "Ho verificato gli obblighi applicabili prima della cattura." }; session.updatedAt = isoNow(); await state.store.put("sessions", session); dialog.close(); return renderCapture(); }
+  if (form.dataset.form === "note" || form.dataset.form === "event") { const at = sessionOffset(session.startedAt); await state.store.put(form.dataset.form === "note" ? "notes" : "events", { id: id(form.dataset.form), sessionId: session.id, recordingId: state.recording?.id ?? null, text: data.get("text").trim(), startMs: at, createdAt: isoNow(), kind: form.dataset.form }); form.reset(); return renderCapture(); }
+  if (form.dataset.form === "transcript") { const startMs = Number(data.get("start")) * 1000, endMs = Number(data.get("end")) * 1000; if (endMs < startMs) return showNotice("La fine del segmento deve seguire l’inizio.", "danger"); await state.store.put("transcripts", { id: id("asr"), sessionId: session.id, recordingId: state.recording?.id ?? null, startMs, endMs, text: data.get("text").trim(), source: data.get("source"), engine: data.get("source") === "manuale-locale" ? "persona" : "ASR locale importato", version: 1, active: true, createdAt: isoNow() }); session.asrStatus = "parziale"; session.updatedAt = isoNow(); await state.store.put("sessions", session); form.reset(); return renderCapture(); }
+  if (form.dataset.form === "search") return runSearch(data);
+  if (form.dataset.form === "delete") { const result = await state.store.deleteSession(session.id); dialog.close(); state.selectedId = null; await updateStorage(); setView("home"); showNotice(`Sessione rimossa: ${result.recordings} tratti e ${result.chunks} blocchi rimossi dall’archivio controllato dall’app. Esportazioni o backup esterni non sono controllati dall’app.`, "warn"); }
+}
+
+function openNewSession() { dialog.innerHTML = `<div class="dialog-body"><h2>Nuova sessione</h2><form data-form="new-session"><label>Titolo della sessione<input name="title" required maxlength="120" placeholder="Es. Preparazione presentazione"></label><p class="small muted">Può esistere senza cattura.</p><div class="actions"><button type="button" data-action="create-session">Crea</button><button class="secondary" type="button" onclick="this.closest('dialog').close()">Annulla</button></div></form></div>`; dialog.showModal(); }
+async function createSession(title) { const clean = title?.trim(); if (!clean) return showNotice("Inserisci un titolo per la sessione.", "danger"); const now = isoNow(); const item = { id: id("ses"), title: clean, state: "aperta", startedAt: now, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, createdAt: now, updatedAt: now, asrStatus: "in attesa" }; await state.store.put("sessions", item); state.selectedId = item.id; dialog.close(); setView("capture"); }
+function openAttestation() { dialog.innerHTML = `<div class="dialog-body"><h2>Attestazione di registrazione</h2><p>Dichiari di aver verificato le regole applicabili e assolto gli obblighi preliminari richiesti per questa sessione con cattura. Non equivale a un’autorizzazione aziendale né prova il consenso di altre persone.</p><form data-form="attest"><label><input type="checkbox" required> Confermo questa dichiarazione</label><div class="actions"><button>Registra attestazione</button><button class="secondary" type="button" onclick="this.closest('dialog').close()">Annulla</button></div></form></div>`; dialog.showModal(); }
+async function confirmTest(kind) { const test = state.tests[kind]; if (!test) return; test.passed = true; test.confirmedAt = isoNow(); const session = await selectedSession(); session.preflight = { ...(session.preflight || {}), [kind]: { passed: true, confirmedAt: test.confirmedAt } }; session.updatedAt = isoNow(); await state.store.put("sessions", session); renderCapture(); }
+
+async function acquireDisplay() {
+  stopStream(state.display); state.tests.system = null;
+  try { state.display = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "monitor" }, audio: true, systemAudio: "include", preferCurrentTab: false }); const video = state.display.getVideoTracks()[0]; state.displayInfo = { surface: video?.getSettings().displaySurface || "sconosciuto", video: video?.readyState, audioTracks: state.display.getAudioTracks().length }; state.display.getTracks().forEach((track) => track.addEventListener("ended", () => handleTrackEnded("flusso monitor/audio terminato"), { once: true })); if (state.displayInfo.surface !== "monitor") showNotice("È stata scelta una superficie diversa dal monitor: non è modalità completa.", "warn"); }
+  catch (error) { showNotice(`Cattura monitor/audio non disponibile: ${error.name}. ${error.message || ""}`, "danger"); state.display = null; state.displayInfo = null; }
+  renderCapture();
+}
+async function acquireMic() { stopStream(state.mic); state.tests.mic = null; try { state.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } }); state.mic.getTracks().forEach((track) => track.addEventListener("ended", () => handleTrackEnded("microfono terminato"), { once: true })); } catch (error) { showNotice(`Microfono non disponibile: ${error.name}. ${error.message || ""}`, "danger"); state.mic = null; } renderCapture(); }
+function stopStream(stream) { stream?.getTracks().forEach((track) => track.stop()); }
+async function handleTrackEnded(cause) { if (state.capturing && !state.stopping) await stopCapture("interrotta", cause); }
+
+async function sample(kind) {
+  const track = kind === "system" ? state.display?.getAudioTracks()[0] : state.mic?.getAudioTracks()[0]; if (!track) return showNotice("Traccia audio non presente.", "danger");
+  let recorder; try { recorder = new MediaRecorder(new MediaStream([track])); } catch (error) { return showNotice(`Campione non disponibile: ${error.message}`, "danger"); }
+  const parts = []; recorder.ondataavailable = (event) => event.data.size && parts.push(event.data);
+  recorder.onstop = () => { const blob = new Blob(parts, { type: recorder.mimeType }); state.tests[kind] = { url: URL.createObjectURL(blob), passed: false, createdAt: isoNow() }; renderCapture(); };
+  recorder.start(); window.setTimeout(() => recorder.state !== "inactive" && recorder.stop(), 3_000); showNotice(`Campionamento ${kind === "system" ? "dell’audio computer" : "del microfono"} in corso: usa ora il segnale innocuo.`);
+}
+function playTest(kind) { const test = state.tests[kind]; if (!test?.url) return; dialog.innerHTML = `<div class="dialog-body"><h2>Riascolto separato: ${kind === "system" ? "audio computer" : "microfono"}</h2><audio controls autoplay src="${test.url}"></audio><p class="small">Segna “riconoscibile” solo se il contenuto atteso si sente in questa traccia, non nell’altra.</p><button class="secondary" onclick="this.closest('dialog').close()">Chiudi</button></div>`; dialog.showModal(); }
+function refreshMeters() { for (const [key, teardown] of state.meters) teardown(); state.meters.clear(); for (const [kind, stream] of [["request-display", state.display], ["request-mic", state.mic]]) { const track = kind === "request-display" ? stream?.getAudioTracks()[0] : stream?.getAudioTracks()[0]; const el = byId(`meter-${kind}`); if (!track || !el) continue; const ctx = new AudioContext(), analyser = ctx.createAnalyser(), source = ctx.createMediaStreamSource(new MediaStream([track])); analyser.fftSize = 256; source.connect(analyser); const values = new Uint8Array(analyser.frequencyBinCount); let frame; const tick = () => { analyser.getByteTimeDomainData(values); let total = 0; values.forEach((value) => total += Math.abs(value - 128)); el.style.width = `${Math.min(100, total / values.length * 2.2)}%`; frame = requestAnimationFrame(tick); }; tick(); state.meters.set(kind, () => { cancelAnimationFrame(frame); source.disconnect(); ctx.close(); }); } }
+
+class Segmenter {
+  constructor(kind, stream, recording, session) { this.kind = kind; this.stream = stream; this.recording = recording; this.session = session; this.active = false; this.recorder = null; this.timer = null; this.sequence = 0; }
+  start() { this.active = true; this.begin(); }
+  begin() { if (!this.active || !state.capturing) return; const startedAt = Date.now(), parts = []; try { this.recorder = new MediaRecorder(this.stream); } catch (error) { failCapture(`MediaRecorder ${this.kind}: ${error.message}`); return; } this.recorder.ondataavailable = (event) => event.data.size && parts.push(event.data); this.recorder.onstop = async () => { const endedAt = Date.now(), blob = new Blob(parts, { type: this.recorder.mimeType }); if (blob.size) await saveBlock(this, blob, startedAt, endedAt); if (this.active && state.capturing) this.begin(); }; this.recorder.start(); this.timer = window.setTimeout(() => this.stop(), CHUNK_MS); }
+  stop() { window.clearTimeout(this.timer); if (this.recorder?.state !== "inactive") this.recorder.stop(); }
+  async finish() { this.active = false; this.stop(); while (this.recorder?.state !== "inactive") await new Promise((resolve) => setTimeout(resolve, 20)); }
+}
+async function saveBlock(segmenter, blob, startedAt, endedAt) {
+  const item = { id: id("block"), recordingId: segmenter.recording.id, sessionId: segmenter.session.id, index: segmenter.sequence++, stream: segmenter.kind, startMs: sessionOffset(segmenter.session.startedAt, startedAt), endMs: sessionOffset(segmenter.session.startedAt, endedAt), format: blob.type || "video/webm", bytes: blob.size, status: "scritto", verifiedAt: null, blob, createdAt: isoNow() };
+  try { await assertStorage(blob.size); await state.store.put("chunks", item); const playable = await isPlayable(blob, segmenter.kind); item.status = playable ? "confermato" : "non verificabile"; item.verifiedAt = isoNow(); await state.store.put("chunks", item); await updateStorage(); if (state.view === "capture") renderCapture(); }
+  catch (error) { await failCapture(`scrittura o quota: ${error.name || "errore"} ${error.message || ""}`); }
+}
+async function assertStorage(nextBytes) { const estimate = await navigator.storage?.estimate?.(); if (estimate?.quota && estimate.usage + nextBytes > estimate.quota * .95) throw new DOMException("Quota locale quasi esaurita", "QuotaExceededError"); }
+function isPlayable(blob, kind) { return new Promise((resolve) => { const media = document.createElement(kind === "display" ? "video" : "audio"), url = URL.createObjectURL(blob); let done = false; const finish = (value) => { if (done) return; done = true; URL.revokeObjectURL(url); resolve(value); }; media.onloadedmetadata = () => finish(Number.isFinite(media.duration)); media.onerror = () => finish(false); media.src = url; window.setTimeout(() => finish(false), 5_000); }); }
+async function startCapture() {
+  const session = await selectedSession(); const complete = state.display && state.mic && state.displayInfo?.surface === "monitor" && state.display.getAudioTracks().length && state.tests.system?.passed && state.tests.mic?.passed; const reduced = byId("reduced-optin")?.checked;
+  if (!complete && !reduced) return showNotice("Mancano le prove della modalità completa. Se scegli consapevolmente una modalità ridotta, attiva l’opt-in esplicito.", "warn");
+  if (!state.display || !state.mic) return showNotice("Sono necessari monitor e microfono; selezionali prima.", "danger");
+  const recording = nextRecording(session, complete ? "completa verificata" : "ridotta con opt-in"); state.recording = recording; state.capturing = true; await state.store.put("recordings", recording); state.segmenters = [new Segmenter("display", state.display, recording, session), new Segmenter("microfono", state.mic, recording, session)]; state.segmenters.forEach((segmenter) => segmenter.start()); renderCapture();
+}
+async function stopCapture(status, cause) { if (!state.recording || state.stopping) return; state.stopping = true; state.capturing = false; const recording = state.recording, session = await state.store.get("sessions", recording.sessionId); await Promise.all(state.segmenters.map((segmenter) => segmenter.finish())); const closed = closeRecording(recording, session, status, cause); await state.store.put("recordings", closed); if (status === "interrotta") await state.store.put("gaps", gapFor(closed, session, cause)); session.state = status === "interrotta" ? "interrotta/in attesa di scelta" : "aperta"; session.updatedAt = isoNow(); await state.store.put("sessions", session); state.recording = null; state.segmenters = []; stopStream(state.display); stopStream(state.mic); state.display = state.mic = null; state.displayInfo = null; state.tests = { system: null, mic: null }; state.stopping = false; await updateStorage(); renderCapture(); }
+async function failCapture(cause) { if (state.recording) await stopCapture("interrotta", cause); else showNotice(cause, "danger"); }
+async function concludeSession() { const session = await selectedSession(); if (state.recording) await stopCapture("terminata", "sessione conclusa"); const latest = await selectedSession(); latest.state = "conclusa"; latest.endedAt = isoNow(); latest.updatedAt = isoNow(); await state.store.put("sessions", latest); renderCapture(); }
+
+async function runSearch(data) { const [sessions, notes, events, transcripts] = await Promise.all([state.store.all("sessions"), state.store.all("notes"), state.store.all("events"), state.store.all("transcripts")]); const from = data.get("from") ? new Date(data.get("from")).getTime() : 0, to = data.get("to") ? new Date(`${data.get("to")}T23:59:59`).getTime() : Infinity; const visible = sessions.filter((session) => { const time = new Date(session.startedAt).getTime(); return time >= from && time <= to; }); const hits = searchDocuments(data.get("query"), { sessions: visible, notes, events, transcripts }).filter((hit) => visible.some((session) => session.id === hit.sessionId)); const target = byId("results"); target.innerHTML = hits.length ? hits.map((hit) => `<article class="result"><span class="chip">${esc(hit.kind)}</span><p>${esc(hit.text)}</p><button class="secondary compact" data-action="open-session" data-id="${hit.sessionId}">${hit.offsetMs != null ? `Apri a ${formatTime(hit.offsetMs)}` : "Apri sessione"}</button></article>`).join("") : `<p class="muted">Nessun risultato.</p>`; }
+async function exportSession() { const session = await selectedSession(); const [recordings, chunks, notes, events, gaps, transcripts] = await Promise.all([state.store.bySession("recordings", session.id), state.store.all("chunks"), state.store.bySession("notes", session.id), state.store.bySession("events", session.id), state.store.bySession("gaps", session.id), state.store.bySession("transcripts", session.id)]); const relevantChunks = chunks.filter((chunk) => chunk.sessionId === session.id).sort((a, b) => a.startMs - b.startMs); const manifest = { schemaVersion: 1, exportedAt: isoNow(), scope: "sessione integrale", session, recordings, notes, events, gaps, transcripts, chunks: relevantChunks.map(({ blob, ...metadata }) => ({ ...metadata, file: `${safeFileName(session.title)}-${metadata.stream}-${metadata.index}.webm` })), notices: ["Solo i blocchi con status confermato sono dichiarati riproducibili.", "Lacune e trascrizione parziale restano nel manifest."] }; download(new Blob([JSON.stringify(manifest, null, 2)], { type: "application/json" }), `${safeFileName(session.title)}-manifest.json`); download(new Blob([transcriptText(transcripts)], { type: "text/plain" }), `${safeFileName(session.title)}-trascrizione.txt`); for (const chunk of relevantChunks) download(chunk.blob, `${safeFileName(session.title)}-${chunk.stream}-${chunk.index}.webm`); showNotice(`Export avviato: manifest, testo e ${relevantChunks.length} blocchi. Verifica la riapertura dei file nella destinazione scelta.`, "warn"); }
+async function playBlock(chunkId) { const chunk = await state.store.get("chunks", chunkId); if (!chunk) return showNotice("Blocco non più presente nell’archivio.", "danger"); const url = URL.createObjectURL(chunk.blob), tag = chunk.stream === "display" ? "video" : "audio"; dialog.innerHTML = `<div class="dialog-body"><h2>Blocco ${esc(chunk.stream)} · ${formatTime(chunk.startMs)}</h2><${tag} controls autoplay src="${url}"></${tag}><p class="small">Stato: <strong>${esc(chunk.status)}</strong>. Il riascolto non colma intervalli mancanti.</p><button class="secondary" onclick="this.closest('dialog').close()">Chiudi</button></div>`; dialog.addEventListener("close", () => URL.revokeObjectURL(url), { once: true }); dialog.showModal(); }
+function download(blob, name) { const url = URL.createObjectURL(blob), link = document.createElement("a"); link.href = url; link.download = name; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 10_000); }
+async function confirmDelete() { const session = await selectedSession(); dialog.innerHTML = `<div class="dialog-body"><h2>Rimuovere “${esc(session.title)}”?</h2><p>Verranno rimossi sessione, tratti, blocchi, note, eventi, lacune, trascrizioni e indice controllati dall’app in questo browser. Gli export e i backup esterni non vengono trovati o eliminati.</p><form data-form="delete"><div class="actions"><button class="danger">Rimuovi dati locali</button><button type="button" class="secondary" onclick="this.closest('dialog').close()">Annulla</button></div></form></div>`; dialog.showModal(); }
+
+init();
