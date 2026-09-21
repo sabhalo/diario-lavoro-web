@@ -20,7 +20,7 @@ Una specifica tecnicamente verificata, pronta per scomposizione e implementazion
 
 ## Decisions so far
 
-Nessun ticket risolto in questa sessione di charting.
+- [Verificare cattura completa in Chrome su macOS](issues/01-verificare-cattura-chrome-macos.md): Chrome 142+ e macOS 14.2+ sono la baseline documentale prudente; il flusso completo resta da provare sul Mac aziendale.
 
 ## Not yet specified
 

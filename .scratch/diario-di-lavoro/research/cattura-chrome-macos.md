@@ -1,0 +1,35 @@
+# Cattura completa in Chrome su macOS — verifica documentale
+
+Verificato il 2026-09-21 da Windows, leggendo fonti primarie in Google Chrome desktop. **Nessuna prova è stata eseguita sul Mac aziendale.** Il criterio di accettazione sul dispositivo resta in [Verificare il Mac aziendale senza cambiare policy](../issues/05-verificare-mac-aziendale.md).
+
+## Esito
+
+La combinazione **macOS 14.2 o successivo e Chrome 142 o successivo** è la base documentale prudente per tentare, da una normale pagina web, la cattura di un monitor con audio di sistema. Apple documenta Core Audio taps a partire da macOS 14.2; Chromium ha abilitato per impostazione predefinita `MacCatapLoopbackAudioForScreenShare` nel ramo M142. Questo non garantisce che ogni Mac o profilo gestito conceda i permessi, che l'utente selezioni schermo e audio, né che un'app sorgente produca audio acquisibile. Chrome 141 introduce `windowAudio`, ma quell'opzione è un suggerimento per la finestra e non dimostra l'audio dell'intero sistema. Fonti: [Apple Core Audio taps](https://developer.apple.com/documentation/coreaudio/capturing-system-audio-with-core-audio-taps), [commit Chromium M142](https://chromium.googlesource.com/chromium/src.git/+/67570055fc09f0ac5abe0931f35fa33e9a95bc8c), [note Chrome 141](https://developer.chrome.com/release-notes/141).
+
+Il [commit Chromium del giugno 2025](https://chromium-review.googlesource.com/c/chromium/src/+/6652695) separa i flag per Cast e ScreenShare. Prova l'implementazione e il requisito macOS 14.2+, ma da solo non prova l'attivazione predefinita; il [commit M142](https://chromium.googlesource.com/chromium/src.git/+/67570055fc09f0ac5abe0931f35fa33e9a95bc8c%5E%21/) copre quest'ultimo punto. Versioni precedenti a 142 possono avere esiti diversi per rollout o configurazione: non sono una baseline garantita dalle fonti raccolte.
+
+## Che cosa espone la pagina e che cosa può ricevere
+
+| Richiesta o selezione | Significato e limite |
+| --- | --- |
+| `getDisplayMedia({ video: true, audio: true, systemAudio: "include" })` | `audio` chiede una traccia se disponibile; `systemAudio` suggerisce di offrirla quando si seleziona un monitor. Il browser può ignorare il suggerimento o restituire solo video. |
+| Monitor, finestra, scheda | L'utente sceglie ogni volta. `videoTrack.getSettings().displaySurface === "monitor"` verifica il tipo scelto; la preferenza dell'app non può imporlo. Audio di scheda o di finestra non equivale all'audio di altre applicazioni. `windowAudio` riguarda la scelta di una finestra ed è anch'esso un suggerimento. |
+| `getUserMedia({ audio: true })` | Richiede il microfono separatamente; non è l'audio di sistema. Serve verificare una sua traccia attiva e un segnale distinto. |
+
+La [specifica W3C Screen Capture](https://w3c.github.io/mediacapture-screen-share/) consente esplicitamente il ritorno di solo video anche con `audio: true`, lascia al browser la scelta delle fonti audio e richiede una nuova scelta dell'utente per ogni cattura. La concessione della cattura del display non è persistente. Richiede inoltre un'azione dell'utente e un documento attivo e in primo piano; una pagina incorporata può essere limitata da `Permissions-Policy: display-capture` (default `self`). L'app deve classificare come **requisito completo soddisfatto** solo monitor + traccia di sistema + microfono con segnale reale. Presenza della traccia e stato `live` da soli non dimostrano contenuto udibile.
+
+## Permessi e blocchi possibili
+
+- In macOS: **Impostazioni di Sistema → Privacy e sicurezza → Registrazione schermo e audio di sistema** per Chrome; **Microfono** separatamente. Apple documenta la concessione per app e, per lo schermo/audio, la possibilità di concedere anche solo audio. Fonti: [Apple schermo e audio](https://support.apple.com/en-gb/guide/mac-help/mchld6aa7d23/mac), [Apple microfono](https://support.apple.com/en-in/guide/mac-help/mchla1b1e1fe/mac).
+- In Chrome: permessi del sito per schermo e microfono; `chrome://policy` permette di osservare le policy applicate, senza modificarle. `ScreenCaptureAllowed=false` fa fallire le API di condivisione, salvo eccezioni per origini autorizzate. `AudioCaptureAllowed=false` blocca gli input audio, salvo URL eccettuati. Non attribuire automaticamente a quest'ultima policy un blocco del loopback di sistema: la documentazione parla di input audio. Fonti: [ScreenCaptureAllowed](https://chromeenterprise.google/policies/screen-capture-allowed/), [ScreenCaptureAllowedByOrigins](https://chromeenterprise.google/policies/screen-capture-allowed-by-origins/), [AudioCaptureAllowed](https://chromeenterprise.google/policies/audio-capture-allowed/).
+- Un profilo MDM può imporre restrizioni privacy più forti dei normali permessi dell'utente. Nessun bypass di policy o cambio impostazioni aziendali è previsto. Fonte: [Apple Privacy Preferences Policy Control](https://support.apple.com/guide/deployment/privacy-preferences-policy-control-payload-dep38df53c2a/web).
+
+## Protocollo minimo sul Mac aziendale
+
+1. Annotare versione esatta di macOS e Chrome Stable (`chrome://version`), stato delle policy pertinenti in `chrome://policy` e se il browser è gestito. Non condividere dati privati, registrazioni o l'elenco completo delle policy.
+2. Aprire una pagina di prova attendibile in contesto sicuro, avviare la cattura con un clic dell'utente, richiedendo `video: true`, `audio: true`, `systemAudio: "include"`; richiedere il microfono separatamente con `getUserMedia({audio:true})`. Concedere solo i normali permessi consentiti dall'azienda. Non usare flag sperimentali, estensioni o driver.
+3. Nel selettore Chrome scegliere **schermo intero/monitor** e, se proposta, attivare la condivisione dell'**audio di sistema**. Annotare se l'opzione audio appare e come è etichettata. Una scheda o finestra selezionata non supera il test completo.
+4. La pagina registra solo metadati di prova: tipo di superficie, numero e stato delle tracce; mostra livelli audio separati per sistema e microfono. Riprodurre per pochi secondi un suono innocuo da **un'altra applicazione**, non dalla scheda della pagina di prova, con microfono silenzioso. Verificare livello e breve riascolto della traccia di sistema. Poi parlare nel microfono con l'app sorgente silenziosa e verificare il secondo livello e riascolto. Evitare call reali e contenuti aziendali.
+5. Esito positivo solo se il monitor è catturato, la traccia di sistema è presente e contiene il suono dell'altra applicazione, e il microfono contiene la voce, tutti nello stesso intervallo. Annotare eventuale permesso negato, opzione audio assente, traccia assente/silenziosa, interruzione o policy bloccante. Salvare solo esito e versioni, non audio.
+
+Se il test fallisce, l'app dovrà dire esattamente quale flusso manca e fermare la modalità completa. Cattura della sola scheda o del solo microfono può essere proposta come modalità ridotta **esplicita**, e non soddisfa il requisito completo. Se il Mac aziendale impedisce la combinazione, serve una decisione sui vincoli con l'utente/coordinatore; non introdurre helper o aggiramenti.
