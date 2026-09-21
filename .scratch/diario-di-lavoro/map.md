@@ -24,12 +24,11 @@ Una specifica tecnicamente verificata, pronta per scomposizione e implementazion
 - [Verificare cattura completa in Chrome su macOS](issues/01-verificare-cattura-chrome-macos.md): Chrome 142+ e macOS 14.2+ sono la baseline documentale prudente; il flusso completo resta da provare sul Mac aziendale.
 - [Verificare trascrizione e persistenza locali nel browser](issues/02-verificare-trascrizione-e-persistenza-locali.md): pipeline candidata Whisper locale, OPFS e IndexedDB; timestamp, prestazioni, durata e recupero restano da misurare sul Mac aziendale.
 - [Definire linguaggio e unità di lavoro](issues/03-definire-linguaggio-e-unita-di-lavoro.md): la sessione è l'episodio e l'unità primaria di ricerca/export; registrazioni, flussi, segmenti ed eventi mantengono confini e lacune espliciti.
+- [Definire esperienza e criteri di accettazione](issues/04-definire-esperienza-e-criteri-di-accettazione.md): modalità completa verificata con prova dei tre flussi, riduzione solo esplicita, recupero e trascrizione locale; accettazione richiede test reali sul Mac, incluso tratto di almeno due ore.
 
 ## Not yet specified
 
 - Scelta dettagliata del flusso di trascrizione locale dopo la verifica di disponibilità, qualità, download del modello e prestazioni sul Mac.
-- Dettagli della struttura dati e della ricerca dopo aver definito cosa costituisce una sessione, una registrazione e una trascrizione.
-- Requisiti di privacy e retention legati alle regole aziendali e ai partecipanti alle call: servono fatti e vincoli dell'ambiente prima di formulare una decisione completa.
 - Piano di test e consegna dell'app in base alla combinazione macOS/Chrome realmente disponibile e alla modalità di distribuzione consentita.
 
 ## Out of scope
