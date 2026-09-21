@@ -1,6 +1,6 @@
 # Pacchetto per prova locale su Mac
 
-Il file `diario-lavoro-web-mac.zip` contiene la build statica e questa guida. Non contiene registrazioni, profili browser, credenziali o modello ASR già scaricato.
+Il file `diario-lavoro-web-mac-2026-09-22.zip` contiene la build statica e questa guida in `docs/MAC-TRANSFER.md`. Non contiene registrazioni, profili browser, credenziali o modello ASR già scaricato.
 
 1. Trasferire lo ZIP solo con un canale locale o aziendale consentito ed estrarlo in una cartella locale del Mac.
 2. Aprire Terminale, entrare nella cartella estratta e verificare `python3 --version`. Se `python3` manca o Terminale è vietato, non installare nulla: usare un’anteprima localhost già autorizzata dall’azienda.
