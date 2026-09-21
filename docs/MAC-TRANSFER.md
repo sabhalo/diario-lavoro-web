@@ -6,6 +6,7 @@ Il file `diario-lavoro-web-mac-2026-09-22.zip` contiene la build statica e quest
 2. Aprire Terminale, entrare nella cartella estratta e verificare `python3 --version`. Se `python3` manca o Terminale è vietato, non installare nulla: usare un’anteprima localhost già autorizzata dall’azienda.
 3. Avviare `python3 -m http.server 4173 --bind 127.0.0.1` e aprire `http://127.0.0.1:4173/` in Chrome. Fermare con `Ctrl+C` alla fine.
 4. Per ASR, usare il pulsante esplicito: prima scarica il runtime da jsDelivr e `Xenova/whisper-tiny` da Hugging Face; nessun audio/testo viene inviato. Scollegare poi la rete e usare “Verifica cache offline”.
+5. L’export produce un solo ZIP64. In Chrome scegliere una destinazione locale quando richiesto: la scrittura può procedere a streaming per sessioni lunghe. Se quella capacità è gestita o assente, il fallback in memoria si interrompe oltre 300 MB invece di creare un archivio incompleto.
 
 ## Checklist della build — non ancora superata
 

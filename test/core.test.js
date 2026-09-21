@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { captureIsLive, closeRecording, exportableChunks, formatTime, gapFor, nextRecording, safeFileName, searchDocuments, supersededAsrSegments, transcriptText } from "../src/core.js";
-import { createZip, streamZip } from "../src/zip.js";
+import { createZip, needsZip64, streamZip } from "../src/zip.js";
 
 const session = { id: "s1", startedAt: "2026-09-22T10:00:00.000Z" };
 test("recording keeps session timeline offsets", () => {
@@ -43,7 +43,10 @@ test("streaming ZIP writes one extractable archive layout", async () => {
   const writes = [], writable = { write: async (chunk) => writes.push(new Uint8Array(chunk)), close: async () => {} };
   await streamZip([{ name: "manifest.json", data: "{}" }, { name: "media/display-0.webm", data: new Blob([Uint8Array.of(3, 4)]) }], writable);
   const size = writes.reduce((sum, chunk) => sum + chunk.length, 0), bytes = new Uint8Array(size); let offset = 0; for (const chunk of writes) { bytes.set(chunk, offset); offset += chunk.length; }
-  const view = new DataView(bytes.buffer); assert.equal(view.getUint32(bytes.length - 22, true), 0x06054b50); assert.match(new TextDecoder().decode(bytes), /media\/display-0\.webm/);
+  const view = new DataView(bytes.buffer); assert.equal(view.getUint32(bytes.length - 22, true), 0x06054b50); assert.match(new TextDecoder().decode(bytes), /media\/display-0\.webm/); assert.ok([...bytes].some((_, index) => index < bytes.length - 4 && view.getUint32(index, true) === 0x06064b50));
+});
+test("ZIP64 boundary is selected without allocating a multi-gigabyte archive", () => {
+  assert.equal(needsZip64({ size: 0xffffffffn }), false); assert.equal(needsZip64({ size: 0x1_0000_0000n }), true); assert.equal(needsZip64({ entries: 0xffff }), true);
 });
 test("preflight rejects tracks that ended before capture starts", () => {
   const base = { displaySurface: "monitor", displayTracks: ["live", "live"], microphoneTracks: ["live"], systemTest: { passed: true }, microphoneTest: { passed: true } };

@@ -19,6 +19,7 @@ Aprire poi `http://127.0.0.1:4173/` nel browser. Eseguire i test puri del domini
 - registra display e microfono in blocchi brevi distinti, salva prima il blocco e lo chiama `confermato` solo dopo un controllo locale di riproducibilità;
 - interrompe il tratto alla perdita di un flusso, dichiara lacune/interruzioni e riconcilia i tratti rimasti `in-corso` alla riapertura;
 - offre consultazione dei blocchi, cronologia, ricerca locale di titolo/note/eventi/segmenti, manifest+testo+media in export e rimozione con conferma dei dati controllati dall’app;
+- esporta sessioni e singoli tratti in un unico ZIP64; su Chrome con File System Access lo scrive in streaming nella destinazione scelta, mentre il fallback in memoria si ferma onestamente oltre 300 MB;
 - con un comando esplicito scarica Transformers.js e `Xenova/whisper-tiny`, esegue ASR italiano nel browser sui blocchi confermati e conserva segmenti temporizzati, modello, runtime, run e copertura; una correzione manuale resta distinta.
 
 ## Limiti e gate
