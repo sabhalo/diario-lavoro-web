@@ -1,6 +1,6 @@
 Parent: ../map.md
 Type: task
-Status: open
+Status: resolved
 Blocked by: 01
 
 # Verificare il Mac aziendale senza cambiare policy
@@ -9,9 +9,19 @@ Blocked by: 01
 
 Eseguire sul Mac aziendale una prova minima, con versioni macOS/Chrome annotate, che verifichi presenza e contenuto reale di schermo intero, audio di sistema e microfono dopo i normali permessi utente. Annotare impostazioni e blocchi aziendali osservati senza aggirarli. Se il Mac non è accessibile all'agente, fornire al coordinatore il minimo protocollo di prova e registrare il risultato solo quando riportato o osservato.
 
-## Protocollo e prova mancante
+## Answer
 
-**Stato al 2026-09-21: prova non eseguita.** L'agente non ha accesso verificato al Mac aziendale. La baseline documentale [Chrome 142+ / macOS 14.2+](../research/cattura-chrome-macos.md) non è un esito sul dispositivo. Il ticket resta `open` finché una persona sul Mac non riporta gli osservabili sotto, oppure l'agente li osserva direttamente. Una prova Windows, una traccia `live` o la sola opzione `audio: true` non bastano.
+### Risultato della prova breve — 2026-09-22
+
+**Esito preliminare positivo, riferito dall'utente e non osservato direttamente dall'agente.** L'utente ha avviato sul proprio Mac una pagina di prova servita localmente, ha concesso i permessi richiesti e ha riferito di vedere l'anteprima dell'intero display e la presenza dell'audio. Il coordinatore gli ha chiesto di riascoltare **separatamente**, durante la stessa condivisione, un campione dell'audio di sistema con suono da un'app diversa da Chrome e un campione del microfono con una frase. L'utente ha confermato «Sì. È a posto tutto ok»; ha poi confermato stop e pulizia con «Ok fatto». Questo soddisfa la **prova tecnica breve preliminare dei tre flussi** sulla base della sua testimonianza e sblocca lo sviluppo dell'app approvato dall'utente. Non è una misura indipendente dell'agente.
+
+Non sono state comunicate versioni esatte di macOS e Chrome, valori di `displaySurface` o `readyState`, nomi e stati delle policy del browser, né dettagli dei permessi macOS. L'anteprima dell'intero display e i due riascolti sono riportati dall'utente; non abbiamo log, schermate o campioni da ispezionare. Restano da eseguire sulla build finale i criteri AC1–AC10, in particolare la prova di almeno due ore, ASR locale, offline, recupero dopo guasti e quota, riproduzione/export. Il gate aziendale del [ticket 06](06-definire-privacy-e-conservazione-aziendale.md) resta separato e non verificato: questa prova non autorizza uso con dati aziendali reali o persone.
+
+Il ticket è chiuso **solo per la fattibilità preliminare riferita**. Le informazioni mancanti e le prove approfondite sono registrate nel [resoconto di verifica](../../../docs/verification/capture-preflight-mac-reported-2026-09-22.md) e nel piano di validazione; non sono considerate superate.
+
+## Protocollo della prova breve
+
+**Questo protocollo fu preparato il 2026-09-21, prima della prova riferita sopra.** L'agente non ha accesso verificato al Mac aziendale. La baseline documentale [Chrome 142+ / macOS 14.2+](../research/cattura-chrome-macos.md) non è una versione misurata sul dispositivo. Una prova Windows, una traccia `live` o la sola opzione `audio: true` non bastano.
 
 ### Preparazione sul Mac
 
