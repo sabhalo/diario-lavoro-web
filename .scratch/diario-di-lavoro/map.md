@@ -9,7 +9,8 @@ Una specifica tecnicamente verificata, pronta per scomposizione e implementazion
 
 ## Notes
 
-- Questa sessione crea la mappa e i ticket; non ne risolve nessuno. Le sessioni successive trattano un ticket decisionale alla volta; ricerca può procedere secondo Wayfinder. L'implementazione segue solo dopo la mappa.
+- Le sessioni decisionali trattano un ticket alla volta; le ricerche possono procedere secondo Wayfinder. La presente mappa prepara una specifica e task pronti per revisione.
+- Gate esplicito dell'utente (2026-09-21): dopo grilling, decisioni, specifica e preparazione task, il coordinatore si ferma e chiede se procedere all'implementazione. Nessun task Terra High o codice prodotto prima di conferma esplicita. Il controllo ogni due minuti viene disattivato mentre si attende l'approvazione.
 - Per charting, grilling, domande, decisioni, pianificazione e definizione task: GPT-5.6 Sol Medium. Solo implementazione finale: GPT-5.6 Terra High.
 - Consultare `wayfinder`, `grilling` e `domain-modeling`; aggiornare `CONTEXT.md` solo quando un termine viene definito. Le risposte al grilling sono delegate esplicitamente dall'utente al coordinatore. Questa è un'eccezione concordata alla regola HITL della skill: annotare ogni risposta come scelta delegata, distinta dai fatti verificati. Non fingere che una prova Windows valga per macOS.
 - Scelte delegate dal coordinatore il 2026-09-21, non verificate sul Mac: il requisito completo è cattura manuale di schermo intero, audio del computer e microfono; supporto condizionato alle versioni macOS/Chrome documentate e ai permessi concedibili senza amministratore. Un'alternativa solo scheda/microfono deve essere etichettata e non soddisfa il requisito completo. La registrazione ha indicatore visibile e controllo dei flussi; sessioni lunghe richiedono salvataggio incrementale e recupero.
