@@ -51,3 +51,7 @@ _Avoid_: Evoluzione personale
 **Evoluzione personale**:
 Rilettura nel tempo delle attività e dei progressi attraverso note e riferimenti scelti dalla persona. Non è una valutazione o un punteggio automatico.
 _Avoid_: Cronologia, punteggio
+
+**Attestazione di registrazione**:
+Dichiarazione della persona, riferita a una sessione con cattura, di aver verificato le regole applicabili e assolto gli obblighi preliminari richiesti. Non equivale a un'autorizzazione aziendale né a prova del consenso delle altre persone.
+_Avoid_: Consenso, autorizzazione aziendale
