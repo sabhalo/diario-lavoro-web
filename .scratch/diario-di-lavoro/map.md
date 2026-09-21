@@ -21,6 +21,7 @@ Una specifica tecnicamente verificata, pronta per scomposizione e implementazion
 ## Decisions so far
 
 - [Verificare cattura completa in Chrome su macOS](issues/01-verificare-cattura-chrome-macos.md): Chrome 142+ e macOS 14.2+ sono la baseline documentale prudente; il flusso completo resta da provare sul Mac aziendale.
+- [Verificare trascrizione e persistenza locali nel browser](issues/02-verificare-trascrizione-e-persistenza-locali.md): pipeline candidata Whisper locale, OPFS e IndexedDB; timestamp, prestazioni, durata e recupero restano da misurare sul Mac aziendale.
 
 ## Not yet specified
 
