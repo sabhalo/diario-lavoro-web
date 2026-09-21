@@ -4,10 +4,10 @@ Web app locale, senza backend, account, analytics o upload automatici, per ricor
 
 ## Avvio locale
 
-Serve una origine sicura: `localhost` in sviluppo oppure HTTPS. Con Python già presente:
+Serve una origine sicura: `localhost` in sviluppo oppure HTTPS. Su macOS, con `python3` già presente:
 
-```powershell
-python -m http.server 4173 --bind 127.0.0.1
+```bash
+python3 -m http.server 4173 --bind 127.0.0.1
 ```
 
 Aprire poi `http://127.0.0.1:4173/` nel browser. Eseguire i test puri del dominio con `npm test` (Node 20+).
