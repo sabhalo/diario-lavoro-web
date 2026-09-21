@@ -28,3 +28,5 @@ Il loop è ripetibile e distingue segnale assente/debole, decoder/resample rotto
 2. Trascrivere i blocchi microfono confermati, prima con **Rapido** e, solo se desiderato, con **Qualità** dopo il download esplicito.
 3. Riportare soltanto: modello scelto, testo prodotto, durata/RMS/picco/formato mostrati nella diagnostica microfono, numero di blocchi falliti, tempo totale, Chrome/macOS e spazio libero approssimativo. Non inviare audio o schermo.
 4. Ripetere offline soltanto dopo cache verificata. Restano aperti tutti gli altri AC e il gate policy.
+
+La build non scarica più un modello da “Trascrivi”: quel comando resta disabilitato finché il modello selezionato non è stato preparato dal gesto esplicito “Scarica e prepara ASR locale”. Per ogni blocco conserva anche modello, durata del lavoro ed errore specifico, oltre alle metriche segnale.

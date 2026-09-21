@@ -66,6 +66,8 @@ export function captureIsLive({ displaySurface, displayTracks = [], microphoneTr
   return displaySurface === "monitor" && displayTracks.length > 1 && microphoneTracks.length > 0 && displayTracks.every((track) => track === "live") && microphoneTracks.every((track) => track === "live") && systemTest?.passed === true && microphoneTest?.passed === true;
 }
 
+export function canTranscribe({ pipelineReady, preparedModel, selectedModel }) { return pipelineReady === true && !!preparedModel && preparedModel === selectedModel; }
+
 export function formatTime(ms = 0) {
   const seconds = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(seconds / 3600)).padStart(2, "0")}:${String(Math.floor(seconds % 3600 / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
