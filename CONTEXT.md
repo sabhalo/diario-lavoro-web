@@ -16,6 +16,14 @@ _Avoid_: Sessione di lavoro
 Componente di schermo, audio del computer o microfono di una registrazione, con presenza e intervalli effettivi sulla sua linea temporale. L'assenza o la perdita di un flusso richiesto rende incompleta la registrazione.
 _Avoid_: Registrazione
 
+**Blocco confermato**:
+Porzione di cattura di una registrazione la cui scrittura è completata e il cui contenuto è stato verificato come recuperabile e riproducibile. La sua conferma non implica che gli intervalli adiacenti siano stati acquisiti.
+_Avoid_: Buffer in memoria, registrazione completa
+
+**Lacuna**:
+Intervallo di una sessione o registrazione per cui la cattura o la trascrizione manca, è incerta o non è recuperabile, con confini e causa dichiarati per quanto noti. Non rappresenta contenuto acquisito.
+_Avoid_: Pausa registrata, silenzio
+
 **Evento**:
 Fatto collocato nel tempo di una sessione di lavoro, inserito dalla persona o osservato dall'app, con origine e tipo distinguibili. Non è un segmento di trascrizione.
 _Avoid_: Segmento di trascrizione
