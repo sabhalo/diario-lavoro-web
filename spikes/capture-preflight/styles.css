@@ -1,0 +1,33 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  background: #12161d;
+  color: #eff4fb;
+}
+
+body { margin: 0; }
+main { max-width: 1080px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+h1 { max-width: 760px; line-height: 1.15; }
+h2 { font-size: 1.1rem; }
+.eyebrow { color: #8cc8ff; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .8rem; }
+.notice, article, .controls, section[aria-labelledby="events-title"] { border: 1px solid #394657; border-radius: .75rem; padding: 1rem 1.1rem; margin-top: 1.25rem; background: #1b222c; }
+.controls { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+button { border: 0; border-radius: .45rem; background: #3b9eef; color: #061422; padding: .65rem .9rem; font: inherit; font-weight: 700; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+button.danger { background: #ec7b7b; }
+#secure-context { flex-basis: 100%; margin: .25rem 0 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(275px, 1fr)); gap: 1rem; margin-top: 1.25rem; }
+.grid article { margin-top: 0; }
+video { width: 100%; aspect-ratio: 16 / 9; background: #070a0e; border-radius: .45rem; object-fit: contain; }
+.details { display: grid; grid-template-columns: auto 1fr; gap: .3rem .75rem; }
+.details dt { font-weight: 700; }
+.details dd { margin: 0; overflow-wrap: anywhere; }
+.meter { height: 1rem; border-radius: 1rem; background: #0b1017; overflow: hidden; border: 1px solid #465568; }
+.meter span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #4cda87, #f6d365 70%, #ef6c6c); transition: width .08s linear; }
+.level, .hint, .status { min-height: 1.5rem; }
+.hint { color: #b9c6d6; font-size: .92rem; }
+audio { display: block; width: 100%; margin-top: .75rem; }
+.events { display: block; max-height: 16rem; overflow: auto; padding: .75rem; background: #0d1219; border-radius: .45rem; white-space: pre-wrap; font-family: ui-monospace, Consolas, monospace; font-size: .9rem; }
+.error { color: #ffaaa4; }
+.ok { color: #8ee7ad; }

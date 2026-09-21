@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Preflight cattura Mac — Diario di lavoro</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Spike locale · nessun upload · nessuna persistenza</p>
+        <h1>Preflight: monitor, audio di sistema e microfono</h1>
+        <p>
+          Questa pagina serve solo a osservare tre flussi sul Mac di destinazione.
+          Non registra una sessione di lavoro, non invia dati e non conserva risultati
+          dopo che la pagina viene chiusa o fermata.
+        </p>
+      </header>
+
+      <section class="notice" aria-labelledby="safety-title">
+        <h2 id="safety-title">Prima della prova</h2>
+        <ol>
+          <li>Usa solo schermo, suono e voce innocui; niente call, notifiche o dati aziendali.</li>
+          <li>Quando Chrome lo chiede, scegli <strong>Schermo intero/monitor</strong>, non scheda o finestra, e abilita l'audio di sistema se l'opzione compare.</li>
+          <li>Per la prima prova riproduci un suono da <strong>un'altra app, non Chrome</strong>, con il microfono silenzioso. Poi fai la prova inversa con una frase breve.</li>
+          <li>I due riascolti restano separati: questa pagina non li miscela e non li inoltra agli altoparlanti durante il rilevamento.</li>
+        </ol>
+      </section>
+
+      <section class="controls" aria-label="Richiesta dei flussi">
+        <button id="request-display" type="button">1. Richiedi monitor + audio di sistema</button>
+        <button id="request-microphone" type="button">2. Richiedi microfono separato</button>
+        <button id="stop-all" class="danger" type="button" disabled>Ferma e pulisci</button>
+        <p id="secure-context" role="status"></p>
+      </section>
+
+      <section class="grid">
+        <article aria-labelledby="display-title">
+          <h2 id="display-title">Display</h2>
+          <video id="display-preview" autoplay muted playsinline aria-label="Anteprima del display scelto"></video>
+          <dl id="display-details" class="details"></dl>
+        </article>
+
+        <article aria-labelledby="system-title">
+          <h2 id="system-title">Audio di sistema (solo display)</h2>
+          <p class="status" id="system-track-status">Non richiesto</p>
+          <div class="meter" aria-label="Livello audio di sistema"><span id="system-meter"></span></div>
+          <p id="system-level" class="level">Nessun segnale</p>
+          <button id="sample-system" type="button" disabled>Registra 5 s di prova sistema</button>
+          <audio id="system-sample" controls preload="metadata"></audio>
+          <p class="hint">Riascolta soltanto il campione dell'altra app. Il microfono non è incluso.</p>
+        </article>
+
+        <article aria-labelledby="microphone-title">
+          <h2 id="microphone-title">Microfono (separato)</h2>
+          <p class="status" id="microphone-track-status">Non richiesto</p>
+          <div class="meter" aria-label="Livello microfono"><span id="microphone-meter"></span></div>
+          <p id="microphone-level" class="level">Nessun segnale</p>
+          <button id="sample-microphone" type="button" disabled>Registra 5 s di prova microfono</button>
+          <audio id="microphone-sample" controls preload="metadata"></audio>
+          <p class="hint">Riascolta soltanto la frase nel microfono. L'audio di sistema non è incluso.</p>
+        </article>
+      </section>
+
+      <section aria-labelledby="events-title">
+        <h2 id="events-title">Osservabili locali</h2>
+        <p>Annota il risultato nel template di verifica; questo elenco scompare al refresh e non viene inviato.</p>
+        <output id="events" class="events" aria-live="polite"></output>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
