@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { closeRecording, exportableChunks, formatTime, gapFor, nextRecording, safeFileName, searchDocuments, supersededAsrSegments, transcriptText } from "../src/core.js";
-import { createZip } from "../src/zip.js";
+import { createZip, streamZip } from "../src/zip.js";
 
 const session = { id: "s1", startedAt: "2026-09-22T10:00:00.000Z" };
 test("recording keeps session timeline offsets", () => {
@@ -38,4 +38,10 @@ test("ZIP fallback has a valid central directory with manifest, transcript, and 
   const bytes = new Uint8Array(await (await createZip([{ name: "manifest.json", data: "{}" }, { name: "trascrizione.txt", data: "ciao" }, { name: "media/mic-0.webm", data: Uint8Array.of(1, 2) }])).arrayBuffer());
   const view = new DataView(bytes.buffer), names = []; for (let offset = 0; offset < bytes.length - 46; offset += 1) if (view.getUint32(offset, true) === 0x02014b50) { const length = view.getUint16(offset + 28, true); names.push(new TextDecoder().decode(bytes.slice(offset + 46, offset + 46 + length))); }
   assert.deepEqual(names, ["manifest.json", "trascrizione.txt", "media/mic-0.webm"]); assert.equal(view.getUint32(bytes.length - 22, true), 0x06054b50);
+});
+test("streaming ZIP writes one extractable archive layout", async () => {
+  const writes = [], writable = { write: async (chunk) => writes.push(new Uint8Array(chunk)), close: async () => {} };
+  await streamZip([{ name: "manifest.json", data: "{}" }, { name: "media/display-0.webm", data: new Blob([Uint8Array.of(3, 4)]) }], writable);
+  const size = writes.reduce((sum, chunk) => sum + chunk.length, 0), bytes = new Uint8Array(size); let offset = 0; for (const chunk of writes) { bytes.set(chunk, offset); offset += chunk.length; }
+  const view = new DataView(bytes.buffer); assert.equal(view.getUint32(bytes.length - 22, true), 0x06054b50); assert.match(new TextDecoder().decode(bytes), /media\/display-0\.webm/);
 });
