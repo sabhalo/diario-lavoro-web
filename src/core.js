@@ -54,6 +54,10 @@ export function transcriptText(segments) {
     .map((s) => `[${formatTime(s.startMs)}] ${s.text}`).join("\n");
 }
 
+export function exportableChunks(chunks) {
+  return chunks.filter((chunk) => chunk.status === "confermato").sort((a, b) => a.startMs - b.startMs);
+}
+
 export function formatTime(ms = 0) {
   const seconds = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(seconds / 3600)).padStart(2, "0")}:${String(Math.floor(seconds % 3600 / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
@@ -93,11 +97,11 @@ export class DiaryStore {
     return this;
   }
   transaction(names, mode = "readonly") { return this.db.transaction(names, mode); }
-  async put(store, value) { await new Promise((resolve, reject) => { const r = this.transaction([store], "readwrite").objectStore(store).put(value); r.onsuccess = resolve; r.onerror = () => reject(r.error); }); return value; }
+  async put(store, value) { await new Promise((resolve, reject) => { const tx = this.transaction([store], "readwrite"); tx.objectStore(store).put(value); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new DOMException("Transazione annullata", "AbortError")); }); return value; }
   async get(store, key) { return new Promise((resolve, reject) => { const r = this.transaction([store]).objectStore(store).get(key); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); }); }
   async all(store) { return new Promise((resolve, reject) => { const r = this.transaction([store]).objectStore(store).getAll(); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); }); }
   async bySession(store, sessionId) { return new Promise((resolve, reject) => { const r = this.transaction([store]).objectStore(store).index("sessionIdIndex").getAll(sessionId); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); }); }
-  async delete(store, key) { return new Promise((resolve, reject) => { const r = this.transaction([store], "readwrite").objectStore(store).delete(key); r.onsuccess = resolve; r.onerror = () => reject(r.error); }); }
+  async delete(store, key) { return new Promise((resolve, reject) => { const tx = this.transaction([store], "readwrite"); tx.objectStore(store).delete(key); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new DOMException("Transazione annullata", "AbortError")); }); }
   async deleteSession(sessionId) {
     const recordings = await this.bySession("recordings", sessionId);
     const chunks = (await Promise.all(recordings.map((r) => this.byRecording("chunks", r.id)))).flat();

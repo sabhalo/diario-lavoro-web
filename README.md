@@ -19,11 +19,11 @@ Aprire poi `http://127.0.0.1:4173/` nel browser. Eseguire i test puri del domini
 - registra display e microfono in blocchi brevi distinti, salva prima il blocco e lo chiama `confermato` solo dopo un controllo locale di riproducibilità;
 - interrompe il tratto alla perdita di un flusso, dichiara lacune/interruzioni e riconcilia i tratti rimasti `in-corso` alla riapertura;
 - offre consultazione dei blocchi, cronologia, ricerca locale di titolo/note/eventi/segmenti, manifest+testo+media in export e rimozione con conferma dei dati controllati dall’app;
-- non scarica modelli o audio: la sezione trascrizione conserva segmenti temporizzati prodotti localmente o corretti dalla persona e rende esplicita la provenienza.
+- con un comando esplicito scarica Transformers.js e `Xenova/whisper-tiny`, esegue ASR italiano nel browser sui blocchi confermati e conserva segmenti temporizzati, modello, runtime, run e copertura; una correzione manuale resta distinta.
 
 ## Limiti e gate
 
-Questa build non contiene un motore ASR addestrato: un download o una distribuzione di modello richiedono una scelta esplicita e una prova offline sul Mac aziendale, non un recupero automatico da un servizio esterno. La presenza di una traccia o di un livello non dimostra l’audio catturato: occorrono i due riascolti separati.
+Il runtime/modello ASR viene scaricato solo dal pulsante esplicito: codice da jsDelivr e modello pubblico `Xenova/whisper-tiny` da Hugging Face (104.9 MB osservati nel browser di sviluppo; da misurare sul target). Il browser scarica questi artefatti, ma non invia audio o testo per l’inferenza. Dopo il primo download l’utente deve scollegare la rete e usare la verifica cache; il relativo esito, qualità, velocità e memoria vanno ancora misurati su Chrome/macOS. La presenza di una traccia o di un livello non dimostra l’audio catturato: occorrono i due riascolti separati.
 
 La prova breve Mac riferita dall’utente ha sbloccato lo sviluppo, non l’uso reale. AC1–AC10, inclusi due ore, recovery dopo guasti, quota, ASR/offline ed export riapribile, vanno eseguiti sulla build in Chrome/macOS. Il gate policy aziendale resta separato e obbligatorio prima di usare dati di lavoro o registrare persone.
 

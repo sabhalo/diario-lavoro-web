@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { closeRecording, formatTime, gapFor, nextRecording, safeFileName, searchDocuments, transcriptText } from "../src/core.js";
+import { closeRecording, exportableChunks, formatTime, gapFor, nextRecording, safeFileName, searchDocuments, transcriptText } from "../src/core.js";
 
 const session = { id: "s1", startedAt: "2026-09-22T10:00:00.000Z" };
 test("recording keeps session timeline offsets", () => {
@@ -21,4 +21,11 @@ test("export helpers are deterministic", () => {
   assert.equal(formatTime(3_661_000), "01:01:01");
   assert.equal(safeFileName("Caffè / prova"), "Caffe-prova");
   assert.match(transcriptText([{ startMs: 10, text: "ciao" }]), /00:00:00/);
+});
+test("media export excludes blocks that were not confirmed", () => {
+  assert.deepEqual(exportableChunks([{ id: "a", status: "scritto", startMs: 0 }, { id: "b", status: "confermato", startMs: 20 }, { id: "c", status: "non verificabile", startMs: 10 }]).map((item) => item.id), ["b"]);
+});
+test("a recovery checkpoint never exports written or unplayable media", () => {
+  const afterRecovery = [{ id: "written-now-bad", status: "non verificabile", startMs: 1 }, { id: "good", status: "confermato", startMs: 2 }];
+  assert.deepEqual(exportableChunks(afterRecovery).map((item) => item.id), ["good"]);
 });
