@@ -1,6 +1,6 @@
 # Diario di lavoro — piano di implementazione candidato
 
-Stato: **preparato per revisione; nessuna implementazione autorizzata o avviata**. Il coordinatore si ferma al gate di [approvazione della mappa Wayfinder](../.scratch/diario-di-lavoro/map.md) prima di qualsiasi task Terra High o codice prodotto. Base: [specifica](spec.md), [glossario](../CONTEXT.md), ticket 01–07 e ricerche. Le stime tecniche e le tecnologie seguenti sono ipotesi da validare, non risultati sul Mac.
+Stato: **approvato per lo sviluppo il 2026-09-22; build implementata, validazione Mac e gate aziendale ancora aperti**. Il gate di [approvazione della mappa Wayfinder](../.scratch/diario-di-lavoro/map.md) è stato superato; la fase 1 ha avuto esito preliminare positivo riferito dall'utente. Base: [specifica](spec.md), [glossario](../CONTEXT.md), ticket 01–07 e ricerche. La sequenza sotto conserva il piano originale; gli esiti effettivi della build sono nel [registro di sviluppo](verification/development-build-2026-09-22.md), non sono risultati sul Mac.
 
 ## Sequenza, dipendenze e artefatti
 

@@ -1,6 +1,6 @@
 # Diario di lavoro — specifica candidata della prima versione
 
-Stato: **pronta per revisione, non verificata tecnicamente sul Mac aziendale** (2026-09-21). Questa specifica sintetizza le scelte delegate registrate nella [mappa Wayfinder](../.scratch/diario-di-lavoro/map.md) e nei [ticket 01–07](../.scratch/diario-di-lavoro/issues/). Il [ticket «Verificare il Mac aziendale senza cambiare policy»](../.scratch/diario-di-lavoro/issues/05-verificare-mac-aziendale.md) resta aperto. Nessun criterio di accettazione è stato superato sul Mac. Il [piano](implementation-plan.md) indica prove e dipendenze; il codice prodotto richiede il gate di approvazione dell'utente indicato nella mappa.
+Stato: **approvata per l'implementazione il 2026-09-22; build da validare sul Mac aziendale**. Questa specifica sintetizza le scelte delegate registrate nella [mappa Wayfinder](../.scratch/diario-di-lavoro/map.md) e nei [ticket 01–07](../.scratch/diario-di-lavoro/issues/). Il [ticket «Verificare il Mac aziendale senza cambiare policy»](../.scratch/diario-di-lavoro/issues/05-verificare-mac-aziendale.md) chiude soltanto la prova breve positiva riferita dall'utente. Nessun criterio di accettazione della build è stato superato sul Mac. Il [piano](implementation-plan.md) indica prove e dipendenze; il gate di sviluppo è stato approvato, mentre quelli tecnici e aziendali restano distinti.
 
 ## Obiettivo e perimetro
 

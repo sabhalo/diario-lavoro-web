@@ -8,8 +8,8 @@ La build statica è stata servita localmente su Windows con Python 3.12.14 e ape
 
 | Caso | Evidenza | Esito |
 | --- | --- | --- |
-| Dominio | `npm test`: 4/4 superati; offset, lacuna, ricerca e helper export | Superato in Node |
-| Sintassi/moduli | `node --check src/app.js` e `node --check src/core.js` | Superato |
+| Dominio e archivio | `npm test`: 11/11 superati; timeline, lacune, ricerca, fonti ASR, preflight, ZIP classico e ZIP64 streaming | Superato in Node |
+| Sintassi/moduli | `node --check` sui moduli `src/app.js`, `src/core.js` e `src/zip.js` | Superato |
 | UI locale | Creata sessione “Verifica locale”; attestazione registrata | Osservato |
 | Timeline e ricerca | Nota locale salvata e visibile a `00:00:14`; ricerca “verifica” ha restituito titolo e nota con salto | Osservato |
 | UI sessione | La rinomina “Verifica locale” → “Verifica UI” è stata salvata e riflessa nella vista | Osservato |
@@ -18,6 +18,10 @@ La build statica è stata servita localmente su Windows con Python 3.12.14 e ape
 | Archivio export | Test Node costruisce ZIP con `manifest.json`, `trascrizione.txt` e media sintetico; la build usa streaming verso una destinazione scelta in Chrome, con fallback in memoria limitato | Superato sinteticamente |
 | Permessi/cattura | Nessuna richiesta di schermo, audio o microfono è stata avviata | Non eseguito intenzionalmente |
 | Export/rimozione | UI presente, ma nessun download o rimozione è stato eseguito sul dispositivo di prova | Non eseguito |
+| ZIP64 | Un archivio ZIP64 piccolo generato dal writer streaming è stato aperto e letto con `zipfile` Python; test di soglia 4 GiB/65.535 entry senza allocazione multi-GiB | Superato localmente; export lungo su Mac non eseguito |
+| Pacchetto Mac | Lo ZIP di trasferimento contiene 23 file con percorsi `docs/` e `.scratch/` conservati; contenuti confrontati byte per byte con la build del checkout | Superato localmente |
+
+Il dispositivo di destinazione, secondo l'utente, è un MacBook Pro 14 pollici 2024 con M4 Max, 64 GB di memoria unificata e macOS Tahoe 26.6.2. Versione e configurazione non sono state osservate dall'agente; versione Chrome e spazio libero non sono ancora stati riportati. La memoria disponibile non dimostra velocità o qualità ASR.
 
 ## Risultati che non si possono inferire
 
