@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { captureIsLive, closeRecording, exportableChunks, formatTime, gapFor, nextRecording, safeFileName, searchDocuments, supersededAsrSegments, transcriptText } from "../src/core.js";
 import { createZip, needsZip64, streamZip } from "../src/zip.js";
+import { asrChunks, audioMetrics } from "../src/asr-core.js";
 
 const session = { id: "s1", startedAt: "2026-09-22T10:00:00.000Z" };
 test("recording keeps session timeline offsets", () => {
@@ -51,4 +52,8 @@ test("ZIP64 boundary is selected without allocating a multi-gigabyte archive", (
 test("preflight rejects tracks that ended before capture starts", () => {
   const base = { displaySurface: "monitor", displayTracks: ["live", "live"], microphoneTracks: ["live"], systemTest: { passed: true }, microphoneTest: { passed: true } };
   assert.equal(captureIsLive(base), true); assert.equal(captureIsLive({ ...base, microphoneTracks: ["ended"] }), false);
+});
+test("ASR diagnostics preserve a measurable 16 kHz signal and clamp open timestamps", () => {
+  const metrics = audioMetrics(Float32Array.from([0, .1, -.1, 0]), 16_000); assert.equal(metrics.samples, 4); assert.ok(Math.abs(metrics.peak - .1) < .00001); assert.ok(metrics.rms > .07);
+  assert.deepEqual(asrChunks({ chunks: [{ text: "ciao", timestamp: [0.2, null] }] }, { startMs: 1_000, endMs: 2_000 }), [{ startMs: 1_200, endMs: 2_000, text: "ciao" }]);
 });

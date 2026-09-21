@@ -20,7 +20,7 @@ Aprire poi `http://127.0.0.1:4173/` nel browser. Eseguire i test puri del domini
 - interrompe il tratto alla perdita di un flusso, dichiara lacune/interruzioni e riconcilia i tratti rimasti `in-corso` alla riapertura;
 - offre consultazione dei blocchi, cronologia, ricerca locale di titolo/note/eventi/segmenti, manifest+testo+media in export e rimozione con conferma dei dati controllati dall’app;
 - esporta sessioni e singoli tratti in un unico ZIP64; su Chrome con File System Access lo scrive in streaming nella destinazione scelta, mentre il fallback in memoria si ferma onestamente oltre 300 MB;
-- con un comando esplicito scarica Transformers.js e `Xenova/whisper-tiny`, esegue ASR italiano nel browser sui blocchi confermati e conserva segmenti temporizzati, modello, runtime, run e copertura; una correzione manuale resta distinta.
+- con un comando esplicito scarica Transformers.js e Whisper (`tiny` rapido o `base` qualità esplicita), esegue ASR italiano nel browser sui blocchi confermati e conserva segmenti temporizzati, modello, runtime, run, copertura e diagnostica del segnale; una correzione manuale resta distinta.
 
 ## Limiti e gate
 
@@ -29,3 +29,5 @@ Il runtime/modello ASR viene scaricato solo dal pulsante esplicito: codice da js
 La prova breve Mac riferita dall’utente ha sbloccato lo sviluppo, non l’uso reale. AC1–AC10, inclusi due ore, recovery dopo guasti, quota, ASR/offline ed export riapribile, vanno eseguiti sulla build in Chrome/macOS. Il gate policy aziendale resta separato e obbligatorio prima di usare dati di lavoro o registrare persone.
 
 I documenti decisionali restano in [`.scratch/diario-di-lavoro/map.md`](.scratch/diario-di-lavoro/map.md), la specifica in [`docs/spec.md`](docs/spec.md) e il piano in [`docs/implementation-plan.md`](docs/implementation-plan.md).
+
+Per diagnosticare ASR senza contenuti reali, aprire [`diagnostics/asr-loop.html`](diagnostics/asr-loop.html) da localhost: usa solo la frase sintetica italiana inclusa, misura RMS/durata/resample e può andare rosso se il riconoscimento è quasi vuoto. L’esito Mac riferito e la procedura di retest sono in [`docs/verification/ac7-mac-user-reported-2026-09-22.md`](docs/verification/ac7-mac-user-reported-2026-09-22.md).

@@ -7,6 +7,7 @@ Il file `diario-lavoro-web-mac-2026-09-22.zip` contiene la build statica e quest
 3. Avviare `python3 -m http.server 4173 --bind 127.0.0.1` e aprire `http://127.0.0.1:4173/` in Chrome. Fermare con `Ctrl+C` alla fine.
 4. Per ASR, usare il pulsante esplicito: prima scarica il runtime da jsDelivr e `Xenova/whisper-tiny` da Hugging Face; nessun audio/testo viene inviato. Scollegare poi la rete e usare “Verifica cache offline”.
 5. L’export produce un solo ZIP64. In Chrome scegliere una destinazione locale quando richiesto: la scrittura può procedere a streaming per sessioni lunghe. Se quella capacità è gestita o assente, il fallback in memoria si interrompe oltre 300 MB invece di creare un archivio incompleto.
+6. Per AC7 prima di usare voce reale, aprire `http://127.0.0.1:4173/diagnostics/asr-loop.html`: usa solo il campione sintetico incluso. Per la nuova prova microfono seguire `docs/verification/ac7-mac-user-reported-2026-09-22.md` e riportare esclusivamente metriche e testo, non il media.
 
 ## Checklist della build — non ancora superata
 
