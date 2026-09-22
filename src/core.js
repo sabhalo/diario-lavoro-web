@@ -62,6 +62,10 @@ export function supersededAsrSegments(segments, source) {
   return segments.filter((segment) => segment.source === "asr-locale" && segment.asrSource === source && segment.active !== false);
 }
 
+export function supersededAsrSegmentsForBlocks(segments, source, blockIds) {
+  return supersededAsrSegments(segments, source).filter((segment) => blockIds.has(segment.blockId));
+}
+
 export function captureIsLive({ displaySurface, displayTracks = [], microphoneTracks = [], systemTest, microphoneTest }) {
   return displaySurface === "monitor" && displayTracks.length > 1 && microphoneTracks.length > 0 && displayTracks.every((track) => track === "live") && microphoneTracks.every((track) => track === "live") && systemTest?.passed === true && microphoneTest?.passed === true;
 }

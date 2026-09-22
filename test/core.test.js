@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canTranscribe, captureIsLive, closeRecording, exportableChunks, formatTime, gapFor, nextRecording, safeFileName, searchDocuments, supersededAsrSegments, transcriptText } from "../src/core.js";
+import { canTranscribe, captureIsLive, closeRecording, exportableChunks, formatTime, gapFor, nextRecording, safeFileName, searchDocuments, supersededAsrSegments, supersededAsrSegmentsForBlocks, transcriptText } from "../src/core.js";
 import { createZip, needsZip64, streamZip } from "../src/zip.js";
-import { ASR_PROFILES, asrChunks, asrProfile, audioMetrics, createAsrPipeline } from "../src/asr-core.js";
+import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, usesWholeBlockTimestamp } from "../src/asr-core.js";
 
 const session = { id: "s1", startedAt: "2026-09-22T10:00:00.000Z" };
 test("recording keeps session timeline offsets", () => {
@@ -35,6 +35,10 @@ test("reprocessing one ASR source preserves the other source", () => {
   const old = [{ id: "mic", source: "asr-locale", asrSource: "microfono", active: true }, { id: "display", source: "asr-locale", asrSource: "display", active: true }];
   assert.deepEqual(supersededAsrSegments(old, "microfono").map((item) => item.id), ["mic"]);
 });
+test("failed reprocessing preserves prior ASR outside successful blocks", () => {
+  const old = [{ id: "old-a", source: "asr-locale", asrSource: "microfono", blockId: "a", active: true }, { id: "old-b", source: "asr-locale", asrSource: "microfono", blockId: "b", active: true }];
+  assert.deepEqual(supersededAsrSegmentsForBlocks(old, "microfono", new Set(["a"])).map((item) => item.id), ["old-a"]);
+});
 test("ZIP fallback has a valid central directory with manifest, transcript, and media", async () => {
   const bytes = new Uint8Array(await (await createZip([{ name: "manifest.json", data: "{}" }, { name: "trascrizione.txt", data: "ciao" }, { name: "media/mic-0.webm", data: Uint8Array.of(1, 2) }])).arrayBuffer());
   const view = new DataView(bytes.buffer), names = []; for (let offset = 0; offset < bytes.length - 46; offset += 1) if (view.getUint32(offset, true) === 0x02014b50) { const length = view.getUint16(offset + 28, true); names.push(new TextDecoder().decode(bytes.slice(offset + 46, offset + 46 + length))); }
@@ -57,11 +61,18 @@ test("ASR diagnostics preserve a measurable 16 kHz signal and clamp open timesta
   const metrics = audioMetrics(Float32Array.from([0, .1, -.1, 0]), 16_000); assert.equal(metrics.samples, 4); assert.ok(Math.abs(metrics.peak - .1) < .00001); assert.ok(metrics.rms > .07);
   assert.deepEqual(asrChunks({ chunks: [{ text: "ciao", timestamp: [0.2, null] }] }, { startMs: 1_000, endMs: 2_000 }), [{ startMs: 1_200, endMs: 2_000, text: "ciao" }]);
 });
-test("high precision is an explicit WebGPU profile and never falls back before loading", async () => {
+test("ASR keeps root text when WebGPU returns only blank timestamp chunks", () => {
+  const result = { text: " frase riconosciuta ", chunks: [{ text: "", timestamp: [0, 1] }] }, block = { startMs: 1_000, endMs: 2_000 };
+  assert.deepEqual(asrResultShape(result), { resultType: "object", keys: ["chunks", "text"], textChars: 18, chunks: 1, nonEmptyChunks: 0, timestampedChunks: 1 });
+  assert.equal(usesWholeBlockTimestamp(result), true);
+  assert.deepEqual(asrChunks(result, block), [{ startMs: 1_000, endMs: 2_000, text: "frase riconosciuta" }]);
+});
+test("high quality is an explicit Small q8 profile", () => {
   assert.equal(asrProfile("precision"), ASR_PROFILES.precision);
   assert.equal(asrProfile("Xenova/whisper-small"), ASR_PROFILES.precision);
   assert.equal(ASR_PROFILES.rapid.device, "wasm");
-  await assert.rejects(createAsrPipeline({ profile: ASR_PROFILES.precision }), /WebGPU non disponibile/);
+  assert.equal(ASR_PROFILES.precision.device, "wasm");
+  assert.equal(ASR_PROFILES.precision.dtype, "q8");
 });
 test("transcription cannot implicitly download an unprepared model", () => {
   assert.equal(canTranscribe({ pipelineReady: false, preparedModel: "Xenova/whisper-tiny", selectedModel: "Xenova/whisper-tiny" }), false);
