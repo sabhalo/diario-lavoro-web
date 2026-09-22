@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canTranscribe, captureIsLive, closeRecording, exportableChunks, exportTranscript, formatTime, gapAfterConfirmed, gapFor, mediaFileName, nextRecording, overlapsScope, persistThenSettle, safeFileName, searchDocuments, storageAdmission, supersededAsrSegments, supersededAsrSegmentsForBlocks, transcriptText } from "../src/core.js";
+import { canTranscribe, captureIsLive, closeRecording, exportableChunks, exportTranscript, formatTime, gapAfterConfirmed, gapFor, mediaFileName, nextRecording, overlapsScope, persistThenSettle, recordingExportScope, safeFileName, searchDocuments, storageAdmission, supersededAsrSegments, supersededAsrSegmentsForBlocks, transcriptText } from "../src/core.js";
 import { createZip, needsZip64, streamZip } from "../src/zip.js";
 import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, usesWholeBlockTimestamp } from "../src/asr-core.js";
 
@@ -53,6 +53,10 @@ test("export helpers keep MIME extensions, scope crossings, and source-media tru
   assert.equal(overlapsScope({ startMs: 0, endMs: 100 }, 100, 200), false);
   assert.equal(exportTranscript({ blockId: "missing" }, new Map()).sourceMediaStatus, "sorgente non trovata");
   assert.equal(exportTranscript({ blockId: "bad" }, new Map([["bad", { status: "non verificabile" }]])).sourceMediaStatus, "sorgente non verificabile");
+});
+test("an in-progress recording has an export boundary derived at export time", () => {
+  assert.deepEqual(recordingExportScope({ offsetStartMs: 100, offsetEndMs: null }, 250), { startMs: 100, endMs: 250, endDerivedAtExport: true });
+  assert.deepEqual(recordingExportScope({ offsetStartMs: 100, offsetEndMs: 200 }, 250), { startMs: 100, endMs: 200, endDerivedAtExport: false });
 });
 test("media export excludes blocks that were not confirmed", () => {
   assert.deepEqual(exportableChunks([{ id: "a", status: "scritto", startMs: 0 }, { id: "b", status: "confermato", startMs: 20 }, { id: "c", status: "non verificabile", startMs: 10 }]).map((item) => item.id), ["b"]);

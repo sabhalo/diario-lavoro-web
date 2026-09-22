@@ -132,6 +132,12 @@ export function overlapsScope(item, startMs = -Infinity, endMs = Infinity) {
   return (Number.isFinite(itemEnd) ? itemEnd > startMs : itemStart >= startMs) && itemStart < endMs;
 }
 
+export function recordingExportScope(recording, currentOffsetMs) {
+  if (!recording || !Number.isFinite(recording.offsetStartMs)) throw new Error("Tratto non valido per export");
+  const closed = Number.isFinite(recording.offsetEndMs);
+  return { startMs: recording.offsetStartMs, endMs: closed ? recording.offsetEndMs : Math.max(recording.offsetStartMs, currentOffsetMs), endDerivedAtExport: !closed };
+}
+
 export function exportTranscript(segment, chunksById) {
   const sourceChunk = segment.blockId ? chunksById.get(segment.blockId) : null;
   return { ...segment, sourceMediaStatus: sourceChunk ? sourceChunk.status === "confermato" ? "verificabile" : "sorgente non verificabile" : segment.blockId ? "sorgente non trovata" : "nessun blocco sorgente dichiarato" };
