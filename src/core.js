@@ -64,7 +64,10 @@ export function safeFileName(value) {
 
 export function transcriptText(segments) {
   return [...segments].sort((a, b) => a.startMs - b.startMs)
-    .map((s) => `[${formatTime(s.startMs)}] ${s.text}`).join("\n");
+    .map((s) => {
+      const provenance = [s.source, s.engine, s.version ? `v${s.version}` : null].filter(Boolean).join("; ");
+      return `[${formatTime(s.startMs)}]${provenance ? ` [${provenance}]` : ""} ${s.text}`;
+    }).join("\n");
 }
 
 export function exportableChunks(chunks) {
@@ -90,17 +93,42 @@ export function formatTime(ms = 0) {
   return `${String(Math.floor(seconds / 3600)).padStart(2, "0")}:${String(Math.floor(seconds % 3600 / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-export function searchDocuments(query, { sessions = [], notes = [], events = [], transcripts = [] }) {
+export function searchDocuments(query, { sessions = [], notes = [], events = [], transcripts = [] }, { includeOriginal = false } = {}) {
   const needle = query.trim().toLocaleLowerCase();
   if (!needle) return [];
   const hits = [];
   for (const session of sessions) {
-    if ((session.title || "").toLocaleLowerCase().includes(needle)) hits.push({ sessionId: session.id, kind: "titolo", text: session.title });
+    if ((session.title || "").toLocaleLowerCase().includes(needle)) hits.push({ sessionId: session.id, documentId: session.id, kind: "titolo", text: session.title, textStatus: "corrente" });
   }
-  for (const doc of [...notes, ...events, ...transcripts]) {
-    if ((doc.text || "").toLocaleLowerCase().includes(needle)) hits.push({ sessionId: doc.sessionId, recordingId: doc.recordingId, offsetMs: doc.startMs, kind: doc.kind || (doc.source ? "trascrizione" : "nota"), text: doc.text });
+  const visibleTranscripts = includeOriginal ? transcripts : transcripts.filter((item) => item.active !== false);
+  for (const doc of [...notes, ...events, ...visibleTranscripts]) {
+    if ((doc.text || "").toLocaleLowerCase().includes(needle)) {
+      const transcript = !!doc.source;
+      hits.push({ sessionId: doc.sessionId, documentId: doc.id, recordingId: doc.recordingId, offsetMs: doc.startMs, kind: doc.kind || (transcript ? "trascrizione" : "nota"), text: doc.text, textStatus: transcript ? (doc.active === false ? "originale/versione conservata" : "versione attiva") : "corrente", provenance: transcript ? { source: doc.source, engine: doc.engine, version: doc.version } : null });
+    }
   }
   return hits;
+}
+
+export function mediaExtension(mime = "") {
+  const normalized = mime.split(";", 1)[0].trim().toLocaleLowerCase();
+  return ({ "video/webm": "webm", "audio/webm": "webm", "video/mp4": "mp4", "audio/mp4": "m4a", "audio/ogg": "ogg", "video/ogg": "ogv", "audio/wav": "wav" })[normalized] || "bin";
+}
+
+export function mediaFileName(chunk) {
+  return `media/${chunk.recordingId.slice(-8)}-${chunk.stream}-${chunk.index}.${mediaExtension(chunk.format)}`;
+}
+
+export function overlapsScope(item, startMs = -Infinity, endMs = Infinity) {
+  const itemStart = Number.isFinite(item.startMs) ? item.startMs : item.offsetStartMs;
+  const itemEnd = Number.isFinite(item.endMs) ? item.endMs : item.offsetEndMs;
+  if (!Number.isFinite(itemStart)) return false;
+  return (Number.isFinite(itemEnd) ? itemEnd > startMs : itemStart >= startMs) && itemStart < endMs;
+}
+
+export function exportTranscript(segment, chunksById) {
+  const sourceChunk = segment.blockId ? chunksById.get(segment.blockId) : null;
+  return { ...segment, sourceMediaStatus: sourceChunk ? sourceChunk.status === "confermato" ? "verificabile" : "sorgente non verificabile" : segment.blockId ? "sorgente non trovata" : "nessun blocco sorgente dichiarato" };
 }
 
 export class DiaryStore {
@@ -141,7 +169,7 @@ export class DiaryStore {
       for (const item of items) tx.objectStore(store).delete(item.id);
     }
     for (const chunk of chunks) tx.objectStore("chunks").delete(chunk.id);
-    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new DOMException("Rimozione annullata", "AbortError")); });
     return { recordings: recordings.length, chunks: chunks.length };
   }
   async byRecording(store, recordingId) { return new Promise((resolve, reject) => { const tx = this.transaction([store]); const index = tx.objectStore(store).index("recordingIdIndex"); const r = index.getAll(recordingId); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); }); }
