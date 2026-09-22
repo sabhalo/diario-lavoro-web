@@ -138,10 +138,10 @@ export function exportTranscript(segment, chunksById) {
 }
 
 export class DiaryStore {
-  constructor() { this.db = null; }
+  constructor(name = DB_NAME, version = DB_VERSION) { this.name = name; this.version = version; this.db = null; }
   async open() {
     this.db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      const request = indexedDB.open(this.name, this.version);
       request.onupgradeneeded = () => {
         const db = request.result;
         for (const name of ["sessions", "recordings", "chunks", "notes", "events", "gaps", "transcripts", "settings"]) {

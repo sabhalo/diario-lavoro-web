@@ -1,4 +1,4 @@
-import { canTranscribe, captureIsLive, CHUNK_MS, DiaryStore, closeRecording, exportableChunks, exportTranscript, formatTime, gapAfterConfirmed, id, isoNow, mediaFileName, nextRecording, overlapsScope, persistThenSettle, safeFileName, searchDocuments, sessionOffset, storageAdmission, supersededAsrSegmentsForBlocks, transcriptText } from "./core.js?v=7";
+import { canTranscribe, captureIsLive, CHUNK_MS, DiaryStore, closeRecording, exportableChunks, exportTranscript, formatTime, gapAfterConfirmed, id, isoNow, mediaFileName, nextRecording, overlapsScope, persistThenSettle, safeFileName, searchDocuments, sessionOffset, storageAdmission, supersededAsrSegmentsForBlocks, transcriptText } from "./core.js?v=8";
 import { createZip, streamZip } from "./zip.js?v=2";
 import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, createAsrPipeline, decodeTo16k, usesWholeBlockTimestamp, webGpuAvailable } from "./asr-core.js?v=6";
 import { isPlayableBlob } from "./media-core.js?v=1";

@@ -1,4 +1,4 @@
-import { persistThenSettle } from "../src/core.js?v=7";
+import { persistThenSettle } from "../src/core.js?v=8";
 import { isPlayableBlob } from "../src/media-core.js?v=1";
 
 const button = document.querySelector("#run"), output = document.querySelector("#result");
