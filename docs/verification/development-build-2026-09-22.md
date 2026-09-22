@@ -8,20 +8,22 @@ La build statica è stata servita localmente su Windows con Python 3.12.14 e ape
 
 | Caso | Evidenza | Esito |
 | --- | --- | --- |
-| Dominio e archivio | `npm test`: 16/16 superati; timeline, lacune, ricerca, profili ASR, smoke test/output ASR e preparazione esplicita, preflight, ZIP classico e ZIP64 streaming | Superato in Node |
-| Sintassi/moduli | `node --check` sui moduli `src/app.js`, `src/core.js` e `src/zip.js` | Superato |
+| Dominio e archivio | `npm test`: 23/23 superati; timeline, lacune, ricerca con provenienza/versioni, scope export, profili ASR, preparazione esclusiva, preflight, ZIP classico e ZIP64 streaming | Superato in Node |
+| Sintassi/moduli | `node --check` sui moduli `src/app.js`, `src/asr-core.js`, `src/core.js` e `src/zip.js` | Superato |
 | UI locale | Creata sessione “Verifica locale”; attestazione registrata | Osservato |
 | Timeline e ricerca | Nota locale salvata e visibile a `00:00:14`; ricerca “verifica” ha restituito titolo e nota con salto | Osservato |
 | UI sessione | La rinomina “Verifica locale” → “Verifica UI” è stata salvata e riflessa nella vista | Osservato |
 | ASR: download esplicito | Pulsante ASR ha caricato Transformers.js 3.8.1 e `Xenova/whisper-tiny`; UI ha mostrato `Motore: pronto` e “nessun audio è stato inviato”; la stima archivio è passata a 104.9 MB | Osservato in browser integrato Windows |
 | ASR: assenza media | “Trascrivi blocchi confermati” senza blocchi ha rifiutato l’avvio con “Non ci sono blocchi microfono confermati da trascrivere” | Osservato |
 | Archivio export | Test Node costruisce ZIP con `manifest.json`, `trascrizione.txt` e media sintetico; la build usa streaming verso una destinazione scelta in Chrome, con fallback in memoria limitato | Superato sinteticamente |
-| Permessi/cattura | Nessuna richiesta di schermo, audio o microfono è stata avviata | Non eseguito intenzionalmente |
-| Export/rimozione | UI presente, ma nessun download o rimozione è stato eseguito sul dispositivo di prova | Non eseguito |
+| Cattura/recupero sintetici | Diagnostic isolato in browser Windows: due stream MediaRecorder sintetici, due blocchi confermati (13.079 e 11.888 byte), lacuna 800–1250 ms e riapertura dopo reload; fault injection su scrittura e sequenza write→settle→stop | Superato localmente; non prova la cattura del monitor o il recupero Mac |
+| Ricerca UI | Sessione sintetica filtrata; nota e trascrizione attiva trovate con provenienza/versione; salto a 00:00:03 | Superato in browser integrato Windows |
+| Riapertura dopo aggiornamento cache | Dopo il bump di `index.html`, `src/app.js`, `src/asr-core.js` e service worker, il primo avvio mostrava temporaneamente “inizializzazione”; al reload la pagina ha aperto l'archivio (0,6 MB) e la vista “Verifica e limiti” con stati AC aggiornati | Superato in browser integrato Windows dopo reload; non è prova di aggiornamento sul Mac |
+| Export/rimozione UI | Dialog di rimozione sintetica mostrato senza confermare la cancellazione; export nella UI annullato dal selettore file, con messaggio “nessun file creato” | Export e rimozione non conclusivi nella UI; nessun dato eliminato |
 | ZIP64 | Un archivio ZIP64 piccolo generato dal writer streaming è stato aperto e letto con `zipfile` Python; test di soglia 4 GiB/65.535 entry senza allocazione multi-GiB | Superato localmente; export lungo su Mac non eseguito |
 | Loop ASR sintetico | Una frase italiana sintetica di 4,51 s, RMS 0,0884, è stata riconosciuta quasi interamente da Tiny q8 e Base q8, entrambi con “viario” al posto di “diario” | Osservato in browser integrato Windows; non riproduce il guasto Mac |
 | AC7 sul Mac | Il riscontro più recente dell’utente è che la trascrizione è «decisamente molto, molto meglio» e per ora adeguata. I precedenti esiti quasi vuoti/inadeguati restano contesto; il loop Windows ha riprodotto Small fp16/WebGPU con output vuoto e il profilo è stato ritirato. Il profilo usato nel riscontro positivo, metriche, Chrome e benchmark non sono stati forniti. | Superato solo secondo testimonianza utente; non è una misura indipendente e la causa Mac non è attribuita. |
-| Pacchetto Mac | Lo ZIP di trasferimento contiene 31 file con percorsi `docs/` e `.scratch/` conservati, inclusi loop e campione sintetico; contenuti confrontati byte per byte con la build del checkout | Superato localmente |
+| Pacchetto Mac | Lo ZIP di trasferimento contiene 38 file del checkout finale; `scripts/package-mac.py` confronta elenco, integrità e contenuti byte per byte con la build | Superato localmente; verificare hash deterministico nel pass finale |
 
 Il dispositivo di destinazione, secondo l'utente, è un MacBook Pro 14 pollici 2024 con M4 Max, 64 GB di memoria unificata e macOS Tahoe 26.6.2. Versione e configurazione non sono state osservate dall'agente; versione Chrome e spazio libero non sono ancora stati riportati. La memoria disponibile non dimostra velocità o qualità ASR.
 

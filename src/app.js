@@ -1,6 +1,6 @@
 import { canTranscribe, captureIsLive, CHUNK_MS, DiaryStore, closeRecording, exportableChunks, exportTranscript, formatTime, gapAfterConfirmed, id, isoNow, mediaFileName, nextRecording, overlapsScope, persistThenSettle, recordingExportScope, safeFileName, searchDocuments, sessionOffset, storageAdmission, supersededAsrSegmentsForBlocks, transcriptText } from "./core.js?v=9";
 import { createZip, streamZip } from "./zip.js?v=2";
-import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, createAsrPipeline, createAsrPreparationGate, decodeTo16k, usesWholeBlockTimestamp, webGpuAvailable } from "./asr-core.js?v=6";
+import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, createAsrPipeline, createAsrPreparationGate, decodeTo16k, usesWholeBlockTimestamp, webGpuAvailable } from "./asr-core.js?v=7";
 import { isPlayableBlob } from "./media-core.js?v=1";
 const state = { store: null, view: "home", selectedId: null, jumpOffset: null, display: null, mic: null, displayInfo: null, tests: { system: null, mic: null }, meters: new Map(), recording: null, segmenters: [], capturing: false, stopping: false, asr: { status: "in attesa" }, asrPipeline: null, asrModule: null };
 const runAsrPreparation = createAsrPreparationGate();
