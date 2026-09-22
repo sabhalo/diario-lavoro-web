@@ -2,9 +2,9 @@
 
 ## Esito
 
-**AC7 non superato.** L’utente riferisce che sulla build target la trascrizione italiana locale del **microfono** riconosce quasi nessuna parola, pur avendo selezionato correttamente la sorgente microfono. L’agente non ha osservato campione, schermata, metriche, versione Chrome o output completo; questa è una segnalazione utente, non una misura indipendente.
+**AC7 superato solo secondo testimonianza utente.** L’esito più recente dell’utente sulla build target è: trascrizione «decisamente molto, molto meglio» e per ora adeguata. L’agente non ha osservato campione, schermata, metriche, versione Chrome, output completo o benchmark; questa è una testimonianza utente, non una misura indipendente. Il profilo/modello effettivamente usato nella prova positiva è **sconosciuto**: non va dedotto dai profili disponibili nella build o dalle prove Windows.
 
-In una seconda prova Mac l’utente riferisce un miglioramento rispetto alla build precedente, ma una qualità ancora inadeguata e inutilizzabile. Non sono disponibili metriche o testo della prova per attribuire il miglioramento a un fattore specifico.
+Cronologia: una prova Mac precedente era stata riferita quasi vuota e una seconda come migliorata ma ancora inutilizzabile. Questi esiti restano contesto diagnostico, non prevalgono sul riscontro più recente e non permettono di attribuire il miglioramento a un fattore specifico.
 
 ## Feedback loop locale
 
@@ -42,11 +42,11 @@ Transformers.js 3.8.1 documenta `device: "webgpu"` per ASR Whisper e i `dtype`, 
 3. **Capacità modello/quantizzazione:** aperta ma non dimostrata. Tiny e base producono lo stesso lieve errore sul sintetico; Small q8/WASM è più capace di Tiny e funziona sul campione, ma non è una prova che risolva la voce reale Mac.
 4. **Parametri/lingua o input naturale:** aperta. Lingua e task sono esplicitamente `italian`/`transcribe`; serve un campione innocuo naturale sul Mac.
 
-## Nuova prova richiesta sul Mac
+## Eventuale prova misurata sul Mac
 
 1. Aprire la build aggiornata, registrare 5–10 secondi nel solo microfono con una frase innocua ripetibile: “Il diario di lavoro registra una frase italiana locale.”
 2. Trascrivere gli stessi blocchi microfono confermati, prima con **Rapido** e poi con **Alta qualità** dopo il download/preparazione espliciti. Non confrontare registrazioni diverse.
 3. Riportare soltanto: profilo scelto, esito del campione sintetico, testo prodotto, durata/RMS/picco/formato e `out=textChars/chunks/nonVuoti` mostrati nella diagnostica microfono, numero di blocchi falliti, tempo totale, Chrome/macOS e spazio libero approssimativo. Non inviare audio o schermo.
-4. Ripetere offline soltanto dopo cache verificata. Restano aperti tutti gli altri AC e il gate policy.
+4. Ripetere offline soltanto dopo cache verificata. Il pass riferito di AC7 resta registrato; questa procedura serve soltanto a produrre evidenza misurata. Restano aperti gli altri AC e il gate policy.
 
-La build non scarica più un modello da “Trascrivi”: quel comando resta disabilitato finché il profilo selezionato non è stato preparato dal gesto esplicito “Scarica e prepara ASR locale”. Per ogni blocco conserva anche profilo, modello, backend, dtype, durata del lavoro ed errore specifico, oltre alle metriche segnale. **AC7 resta non superato** finché questa prova controllata sul Mac non restituisce un output utile e le metriche richieste.
+La build non scarica più un modello da “Trascrivi”: quel comando resta disabilitato finché il profilo selezionato non è stato preparato dal gesto esplicito “Scarica e prepara ASR locale”. Per ogni blocco conserva anche profilo, modello, backend, dtype, durata del lavoro ed errore specifico, oltre alle metriche segnale. **AC7 è superato solo secondo testimonianza utente**; una prova controllata con i dati sopra renderebbe l'evidenza misurata, senza cambiare lo stato degli altri AC o del gate policy.

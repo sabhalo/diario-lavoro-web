@@ -1,6 +1,6 @@
 # Diario di lavoro — piano di implementazione candidato
 
-Stato: **approvato per lo sviluppo il 2026-09-22; build implementata, validazione Mac e gate aziendale ancora aperti**. Il gate di [approvazione della mappa Wayfinder](../.scratch/diario-di-lavoro/map.md) è stato superato; la fase 1 ha avuto esito preliminare positivo riferito dall'utente. Base: [specifica](spec.md), [glossario](../CONTEXT.md), ticket 01–07 e ricerche. La sequenza sotto conserva il piano originale; gli esiti effettivi della build sono nel [registro di sviluppo](verification/development-build-2026-09-22.md), non sono risultati sul Mac.
+Stato: **approvato per lo sviluppo il 2026-09-22; build implementata, validazione Mac e gate aziendale ancora aperti**. Il gate di [approvazione della mappa Wayfinder](../.scratch/diario-di-lavoro/map.md) è stato superato; la fase 1 ha avuto esito preliminare positivo riferito dall'utente e AC7 è positivo **solo secondo testimonianza utente**. Il profilo ASR effettivo, metriche e benchmark non sono stati riferiti. Base: [specifica](spec.md), [glossario](../CONTEXT.md), ticket 01–07 e ricerche. La sequenza sotto conserva il piano originale; gli esiti effettivi sono nella [matrice AC](verification/acceptance-matrix-2026-09-22.md) e nel [registro di sviluppo](verification/development-build-2026-09-22.md).
 
 ## Sequenza, dipendenze e artefatti
 
