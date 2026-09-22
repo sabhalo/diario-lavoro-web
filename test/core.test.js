@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canTranscribe, captureIsLive, closeRecording, exportableChunks, formatTime, gapAfterConfirmed, gapFor, nextRecording, persistThenSettle, safeFileName, searchDocuments, storageAdmission, supersededAsrSegments, supersededAsrSegmentsForBlocks, transcriptText } from "../src/core.js";
+import { canTranscribe, captureIsLive, closeRecording, exportableChunks, exportTranscript, formatTime, gapAfterConfirmed, gapFor, mediaFileName, nextRecording, overlapsScope, persistThenSettle, safeFileName, searchDocuments, storageAdmission, supersededAsrSegments, supersededAsrSegmentsForBlocks, transcriptText } from "../src/core.js";
 import { createZip, needsZip64, streamZip } from "../src/zip.js";
 import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, usesWholeBlockTimestamp } from "../src/asr-core.js";
 
@@ -35,10 +35,24 @@ test("search returns source and temporal jump", () => {
   const hits = searchDocuments("progetto", { sessions: [{ id: "s1", title: "Progetto alfa" }], notes: [{ sessionId: "s1", text: "nota" }], events: [], transcripts: [{ sessionId: "s1", startMs: 3_000, source: "locale", text: "progetto discusso" }] });
   assert.equal(hits.length, 2); assert.equal(hits[1].offsetMs, 3_000);
 });
+test("search uses active corrections by default and originals only on request", () => {
+  const documents = { sessions: [], notes: [], events: [], transcripts: [{ id: "original", sessionId: "s1", startMs: 1, source: "asr-locale", active: false, text: "parola originale" }, { id: "correction", sessionId: "s1", startMs: 1, source: "manuale-locale", active: true, text: "parola corretta" }] };
+  assert.equal(searchDocuments("originale", documents).length, 0);
+  assert.deepEqual(searchDocuments("originale", documents, { includeOriginal: true }).map((hit) => hit.textStatus), ["originale/versione conservata"]);
+  assert.equal(searchDocuments("corretta", documents)[0].provenance.source, "manuale-locale");
+});
 test("export helpers are deterministic", () => {
   assert.equal(formatTime(3_661_000), "01:01:01");
   assert.equal(safeFileName("Caffè / prova"), "Caffe-prova");
   assert.match(transcriptText([{ startMs: 10, text: "ciao" }]), /00:00:00/);
+});
+test("export helpers keep MIME extensions, scope crossings, and source-media truth", () => {
+  assert.equal(mediaFileName({ recordingId: "recording-12345678", stream: "microfono", index: 2, format: "audio/mp4;codecs=mp4a" }), "media/12345678-microfono-2.m4a");
+  assert.equal(mediaFileName({ recordingId: "recording-12345678", stream: "display", index: 2, format: "application/x-unknown" }), "media/12345678-display-2.bin");
+  assert.equal(overlapsScope({ startMs: 50, endMs: 150 }, 100, 200), true);
+  assert.equal(overlapsScope({ startMs: 0, endMs: 100 }, 100, 200), false);
+  assert.equal(exportTranscript({ blockId: "missing" }, new Map()).sourceMediaStatus, "sorgente non trovata");
+  assert.equal(exportTranscript({ blockId: "bad" }, new Map([["bad", { status: "non verificabile" }]])).sourceMediaStatus, "sorgente non verificabile");
 });
 test("media export excludes blocks that were not confirmed", () => {
   assert.deepEqual(exportableChunks([{ id: "a", status: "scritto", startMs: 0 }, { id: "b", status: "confermato", startMs: 20 }, { id: "c", status: "non verificabile", startMs: 10 }]).map((item) => item.id), ["b"]);
