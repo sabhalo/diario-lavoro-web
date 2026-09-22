@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canTranscribe, captureIsLive, closeRecording, exportableChunks, formatTime, gapFor, nextRecording, safeFileName, searchDocuments, supersededAsrSegments, supersededAsrSegmentsForBlocks, transcriptText } from "../src/core.js";
+import { canTranscribe, captureIsLive, closeRecording, exportableChunks, formatTime, gapAfterConfirmed, gapFor, nextRecording, safeFileName, searchDocuments, storageAdmission, supersededAsrSegments, supersededAsrSegmentsForBlocks, transcriptText } from "../src/core.js";
 import { createZip, needsZip64, streamZip } from "../src/zip.js";
 import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, usesWholeBlockTimestamp } from "../src/asr-core.js";
 
@@ -14,6 +14,16 @@ test("recording keeps session timeline offsets", () => {
 test("gap is explicit and never negative", () => {
   const recording = { id: "r1", offsetEndMs: 900 };
   assert.deepEqual(gapFor(recording, session, "sleep", Date.parse(session.startedAt) + 1_200).startMs, 900);
+});
+test("interruption gap starts after the last confirmed block and omits zero-length gaps", () => {
+  const recording = { id: "r1", sessionId: "s1", offsetStartMs: 100, offsetEndMs: 900 };
+  assert.deepEqual(gapAfterConfirmed(recording, [{ status: "confermato", endMs: 700 }], "revoca"), { recordingId: "r1", sessionId: "s1", startMs: 700, endMs: 900, cause: "revoca", certainty: "misurata" });
+  assert.equal(gapAfterConfirmed(recording, [{ status: "confermato", endMs: 900 }], "revoca"), null);
+});
+test("storage admission rejects a capture before recording when projected usage is too high", () => {
+  assert.equal(storageAdmission({ usage: 94, quota: 100 }, 0).allowed, true);
+  assert.equal(storageAdmission({ usage: 95, quota: 100 }, 1).allowed, false);
+  assert.equal(storageAdmission({}, 1).known, false);
 });
 test("search returns source and temporal jump", () => {
   const hits = searchDocuments("progetto", { sessions: [{ id: "s1", title: "Progetto alfa" }], notes: [{ sessionId: "s1", text: "nota" }], events: [], transcripts: [{ sessionId: "s1", startMs: 3_000, source: "locale", text: "progetto discusso" }] });

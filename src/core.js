@@ -44,6 +44,19 @@ export function gapFor(recording, session, cause, at = Date.now()) {
   };
 }
 
+export function gapAfterConfirmed(recording, chunks, cause, certainty = "misurata") {
+  const endMs = recording?.offsetEndMs;
+  const startMs = exportableChunks(chunks).reduce((latest, chunk) => Math.max(latest, chunk.endMs), recording?.offsetStartMs ?? 0);
+  if (!Number.isFinite(endMs) || endMs <= startMs) return null;
+  return { recordingId: recording.id, sessionId: recording.sessionId, startMs, endMs, cause, certainty };
+}
+
+export function storageAdmission({ usage = 0, quota = 0 } = {}, nextBytes = 0, threshold = .95) {
+  if (!Number.isFinite(quota) || quota <= 0) return { allowed: true, known: false, usage: 0, quota: 0, threshold };
+  const projected = Math.max(0, usage) + Math.max(0, nextBytes);
+  return { allowed: projected <= quota * threshold, known: true, usage: Math.max(0, usage), quota, projected, threshold };
+}
+
 export function safeFileName(value) {
   return (value || "sessione").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70) || "sessione";
