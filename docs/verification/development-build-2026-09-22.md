@@ -8,7 +8,7 @@ La build statica è stata servita localmente su Windows con Python 3.12.14 e ape
 
 | Caso | Evidenza | Esito |
 | --- | --- | --- |
-| Dominio e archivio | `npm test`: 13/13 superati; timeline, lacune, ricerca, fonti ASR, preparazione esplicita del modello, preflight, ZIP classico e ZIP64 streaming | Superato in Node |
+| Dominio e archivio | `npm test`: 14/14 superati; timeline, lacune, ricerca, profili ASR e preparazione esplicita, preflight, ZIP classico e ZIP64 streaming | Superato in Node |
 | Sintassi/moduli | `node --check` sui moduli `src/app.js`, `src/core.js` e `src/zip.js` | Superato |
 | UI locale | Creata sessione “Verifica locale”; attestazione registrata | Osservato |
 | Timeline e ricerca | Nota locale salvata e visibile a `00:00:14`; ricerca “verifica” ha restituito titolo e nota con salto | Osservato |
@@ -20,7 +20,7 @@ La build statica è stata servita localmente su Windows con Python 3.12.14 e ape
 | Export/rimozione | UI presente, ma nessun download o rimozione è stato eseguito sul dispositivo di prova | Non eseguito |
 | ZIP64 | Un archivio ZIP64 piccolo generato dal writer streaming è stato aperto e letto con `zipfile` Python; test di soglia 4 GiB/65.535 entry senza allocazione multi-GiB | Superato localmente; export lungo su Mac non eseguito |
 | Loop ASR sintetico | Una frase italiana sintetica di 4,51 s, RMS 0,0884, è stata riconosciuta quasi interamente da Tiny q8 e Base q8, entrambi con “viario” al posto di “diario” | Osservato in browser integrato Windows; non riproduce il guasto Mac |
-| AC7 sul Mac | L’utente riferisce che la trascrizione italiana del microfono è quasi vuota, con sorgente microfono selezionata correttamente; diagnostica per blocco e procedura di retest aggiunte | Non superato secondo l’utente; causa non identificata |
+| AC7 sul Mac | L’utente riferisce che la trascrizione italiana del microfono era quasi vuota, con sorgente microfono selezionata correttamente; la seconda prova è migliorata ma resta inutilizzabile. Small fp16/WebGPU è stato aggiunto solo come confronto esplicito | Non superato secondo l’utente; causa non identificata |
 | Pacchetto Mac | Lo ZIP di trasferimento contiene 31 file con percorsi `docs/` e `.scratch/` conservati, inclusi loop e campione sintetico; contenuti confrontati byte per byte con la build del checkout | Superato localmente |
 
 Il dispositivo di destinazione, secondo l'utente, è un MacBook Pro 14 pollici 2024 con M4 Max, 64 GB di memoria unificata e macOS Tahoe 26.6.2. Versione e configurazione non sono state osservate dall'agente; versione Chrome e spazio libero non sono ancora stati riportati. La memoria disponibile non dimostra velocità o qualità ASR.

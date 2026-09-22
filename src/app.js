@@ -7,8 +7,8 @@ const esc = (value = "") => String(value).replace(/[&<>"]/g, (char) => ({ "&": "
 const byId = (id) => document.getElementById(id);
 const localDate = (iso) => iso ? new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso)) : "—";
 const streamState = (stream) => stream?.getTracks().some((track) => track.readyState === "live") ? "live" : "assente";
-const persistedAsrProfile = () => asrProfile(state.asr.profileId || state.asr.model || "rapid");
-const selectedAsrProfile = () => asrProfile(byId("asr-model")?.value || state.asr.profileId || state.asr.model || "rapid");
+const persistedAsrProfile = () => asrProfile(state.asr.profileId || (state.asr.model === "Xenova/whisper-small" ? "rapid" : state.asr.model) || "rapid");
+const selectedAsrProfile = () => asrProfile(byId("asr-model")?.value || persistedAsrProfile().id);
 const asrOptions = () => Object.values(ASR_PROFILES).map((profile) => `<option value="${profile.id}" ${persistedAsrProfile().id === profile.id ? "selected" : ""}>${esc(profile.label)}: ${esc(profile.model.replace("Xenova/whisper-", "Whisper "))} ${profile.dtype}${profile.device === "webgpu" ? " · WebGPU" : ""} — ${esc(profile.size)}</option>`).join("");
 
 async function init() {

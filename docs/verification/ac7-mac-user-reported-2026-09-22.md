@@ -4,6 +4,8 @@
 
 **AC7 non superato.** L’utente riferisce che sulla build target la trascrizione italiana locale del **microfono** riconosce quasi nessuna parola, pur avendo selezionato correttamente la sorgente microfono. L’agente non ha osservato campione, schermata, metriche, versione Chrome o output completo; questa è una segnalazione utente, non una misura indipendente.
 
+In una seconda prova Mac l’utente riferisce un miglioramento rispetto alla build precedente, ma una qualità ancora inadeguata e inutilizzabile. Non sono disponibili metriche o testo della prova per attribuire il miglioramento a un fattore specifico.
+
 ## Feedback loop locale
 
 È stato creato il campione innocuo sintetico `test/fixtures/italian-synthetic.wav` con la frase: “Il diario di lavoro registra una frase italiana locale.” Il percorso `diagnostics/asr-loop.html` esegue il decoder della build, resample mono 16 kHz, RMS/durata, Whisper con `language: italian`, timestamp e verifica testo.
@@ -35,7 +37,7 @@ Transformers.js 3.8.1 documenta `device: "webgpu"` anche per ASR Whisper e docum
 
 1. **Sorgente selezionata sbagliata:** scartata per la prova riferita: l’utente conferma microfono.
 2. **Segnale reale mic insufficiente, formato/decodifica o resample del blocco:** aperta. La build ora conserva e mostra per ogni blocco durata decodificata, campioni 16 kHz, RMS, picco, formato, modello e errore, senza inviare media.
-3. **Capacità modello/quantizzazione:** aperta ma non dimostrata. Tiny e base producono lo stesso lieve errore sul sintetico; il nuovo Small fp16/WebGPU è un esperimento esplicito più capace, non una prova che risolva la voce reale.
+3. **Capacità modello/quantizzazione:** aperta ma non dimostrata. Tiny e base producono lo stesso lieve errore sul sintetico; il nuovo Small fp16/WebGPU è un esperimento esplicito con pesi meno quantizzati, non un modello architetturalmente più capace né una prova che risolva la voce reale.
 4. **Parametri/lingua o input naturale:** aperta. Lingua e task sono esplicitamente `italian`/`transcribe`; serve un campione innocuo naturale sul Mac.
 
 ## Nuova prova richiesta sul Mac
