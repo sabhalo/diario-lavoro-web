@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canTranscribe, captureIsLive, closeRecording, exportableChunks, formatTime, gapAfterConfirmed, gapFor, nextRecording, safeFileName, searchDocuments, storageAdmission, supersededAsrSegments, supersededAsrSegmentsForBlocks, transcriptText } from "../src/core.js";
+import { canTranscribe, captureIsLive, closeRecording, exportableChunks, formatTime, gapAfterConfirmed, gapFor, nextRecording, persistThenSettle, safeFileName, searchDocuments, storageAdmission, supersededAsrSegments, supersededAsrSegmentsForBlocks, transcriptText } from "../src/core.js";
 import { createZip, needsZip64, streamZip } from "../src/zip.js";
 import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, usesWholeBlockTimestamp } from "../src/asr-core.js";
 
@@ -24,6 +24,12 @@ test("storage admission rejects a capture before recording when projected usage 
   assert.equal(storageAdmission({ usage: 94, quota: 100 }, 0).allowed, true);
   assert.equal(storageAdmission({ usage: 95, quota: 100 }, 1).allowed, false);
   assert.equal(storageAdmission({}, 1).known, false);
+});
+test("write failure settles the current segment before it requests capture stop", async () => {
+  const order = [], error = await persistThenSettle(async () => { order.push("write"); throw new DOMException("quota", "QuotaExceededError"); }, () => order.push("settle"));
+  order.push("stop");
+  assert.equal(error.name, "QuotaExceededError");
+  assert.deepEqual(order, ["write", "settle", "stop"]);
 });
 test("search returns source and temporal jump", () => {
   const hits = searchDocuments("progetto", { sessions: [{ id: "s1", title: "Progetto alfa" }], notes: [{ sessionId: "s1", text: "nota" }], events: [], transcripts: [{ sessionId: "s1", startMs: 3_000, source: "locale", text: "progetto discusso" }] });

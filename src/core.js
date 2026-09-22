@@ -57,6 +57,12 @@ export function storageAdmission({ usage = 0, quota = 0 } = {}, nextBytes = 0, t
   return { allowed: projected <= quota * threshold, known: true, usage: Math.max(0, usage), quota, projected, threshold };
 }
 
+export async function persistThenSettle(write, settle) {
+  try { await write(); return null; }
+  catch (error) { return error; }
+  finally { settle(); }
+}
+
 export function safeFileName(value) {
   return (value || "sessione").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70) || "sessione";
