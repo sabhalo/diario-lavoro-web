@@ -1,8 +1,9 @@
 import { canTranscribe, captureIsLive, CHUNK_MS, DiaryStore, closeRecording, exportableChunks, exportTranscript, formatTime, gapAfterConfirmed, id, isoNow, mediaFileName, nextRecording, overlapsScope, persistThenSettle, recordingExportScope, safeFileName, searchDocuments, sessionOffset, storageAdmission, supersededAsrSegmentsForBlocks, transcriptText } from "./core.js?v=9";
 import { createZip, streamZip } from "./zip.js?v=2";
-import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, createAsrPipeline, decodeTo16k, usesWholeBlockTimestamp, webGpuAvailable } from "./asr-core.js?v=6";
+import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, createAsrPipeline, createAsrPreparationGate, decodeTo16k, usesWholeBlockTimestamp, webGpuAvailable } from "./asr-core.js?v=6";
 import { isPlayableBlob } from "./media-core.js?v=1";
 const state = { store: null, view: "home", selectedId: null, jumpOffset: null, display: null, mic: null, displayInfo: null, tests: { system: null, mic: null }, meters: new Map(), recording: null, segmenters: [], capturing: false, stopping: false, asr: { status: "in attesa" }, asrPipeline: null, asrModule: null };
+const runAsrPreparation = createAsrPreparationGate();
 const view = document.querySelector("#view"), dialog = document.querySelector("#dialog"), storageStatus = document.querySelector("#storage-status");
 const esc = (value = "") => String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]);
 const byId = (id) => document.getElementById(id);
@@ -218,7 +219,8 @@ async function smokeTestAsr(pipeline) {
   if (!segments.length) throw new Error(`campione sintetico senza testo (output text=${output.textChars}, chunks=${output.chunks}, nonVuoti=${output.nonEmptyChunks}, timestamp=${output.timestampedChunks})`);
   return { at: isoNow(), output, segments: segments.length, seconds: metrics.seconds, rms: metrics.rms };
 }
-async function prepareAsr(cacheOnly = false) {
+async function prepareAsr(cacheOnly = false) { return runAsrPreparation(() => prepareAsrUnchecked(cacheOnly)); }
+async function prepareAsrUnchecked(cacheOnly = false) {
   const profile = selectedAsrProfile(), model = profile.model;
   if (state.asrPipeline && state.asr.model === model && state.asr.profileId === profile.id) return state.asrPipeline;
   state.asrPipeline = null;

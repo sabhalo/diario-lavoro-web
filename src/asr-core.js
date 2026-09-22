@@ -13,6 +13,16 @@ export function asrProfile(value = "rapid") {
 
 export function webGpuAvailable() { return typeof navigator !== "undefined" && !!navigator.gpu; }
 
+export function createAsrPreparationGate() {
+  let active = false;
+  return async (operation) => {
+    if (active) throw new Error("Preparazione ASR già in corso.");
+    active = true;
+    try { return await operation(); }
+    finally { active = false; }
+  };
+}
+
 export async function createAsrPipeline({ profile: selectedProfile, model = ASR_MODEL, cacheOnly = false, progress = () => {} } = {}) {
   const profile = selectedProfile ? asrProfile(selectedProfile.id || selectedProfile) : asrProfile(model);
   if (profile.requiresWebGPU && !webGpuAvailable()) throw new Error("WebGPU non disponibile per il profilo ASR selezionato.");

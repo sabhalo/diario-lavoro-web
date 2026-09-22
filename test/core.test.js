@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { canTranscribe, captureIsLive, closeRecording, exportableChunks, exportTranscript, formatTime, gapAfterConfirmed, gapFor, mediaFileName, nextRecording, overlapsScope, persistThenSettle, recordingExportScope, safeFileName, searchDocuments, storageAdmission, supersededAsrSegments, supersededAsrSegmentsForBlocks, transcriptText } from "../src/core.js";
 import { createZip, needsZip64, streamZip } from "../src/zip.js";
-import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, usesWholeBlockTimestamp } from "../src/asr-core.js";
+import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, createAsrPreparationGate, usesWholeBlockTimestamp } from "../src/asr-core.js";
 
 const session = { id: "s1", startedAt: "2026-09-22T10:00:00.000Z" };
 test("recording keeps session timeline offsets", () => {
@@ -112,4 +112,12 @@ test("transcription cannot implicitly download an unprepared model", () => {
   assert.equal(canTranscribe({ pipelineReady: false, preparedModel: "Xenova/whisper-tiny", selectedModel: "Xenova/whisper-tiny" }), false);
   assert.equal(canTranscribe({ pipelineReady: true, preparedModel: "Xenova/whisper-tiny", selectedModel: "Xenova/whisper-base" }), false);
   assert.equal(canTranscribe({ pipelineReady: true, preparedModel: "Xenova/whisper-tiny", selectedModel: "Xenova/whisper-tiny" }), true);
+});
+test("ASR preparation is exclusive so cache-only mode cannot race a download", async () => {
+  const run = createAsrPreparationGate(); let release;
+  const first = run(() => new Promise((resolve) => { release = resolve; }));
+  await assert.rejects(run(async () => "second"), /Preparazione ASR già in corso/);
+  release("first");
+  assert.equal(await first, "first");
+  assert.equal(await run(async () => "after"), "after");
 });
