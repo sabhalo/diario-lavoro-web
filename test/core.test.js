@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { canTranscribe, captureIsLive, closeRecording, exportableChunks, formatTime, gapFor, nextRecording, safeFileName, searchDocuments, supersededAsrSegments, transcriptText } from "../src/core.js";
 import { createZip, needsZip64, streamZip } from "../src/zip.js";
-import { asrChunks, audioMetrics } from "../src/asr-core.js";
+import { ASR_PROFILES, asrChunks, asrProfile, audioMetrics, createAsrPipeline } from "../src/asr-core.js";
 
 const session = { id: "s1", startedAt: "2026-09-22T10:00:00.000Z" };
 test("recording keeps session timeline offsets", () => {
@@ -56,6 +56,12 @@ test("preflight rejects tracks that ended before capture starts", () => {
 test("ASR diagnostics preserve a measurable 16 kHz signal and clamp open timestamps", () => {
   const metrics = audioMetrics(Float32Array.from([0, .1, -.1, 0]), 16_000); assert.equal(metrics.samples, 4); assert.ok(Math.abs(metrics.peak - .1) < .00001); assert.ok(metrics.rms > .07);
   assert.deepEqual(asrChunks({ chunks: [{ text: "ciao", timestamp: [0.2, null] }] }, { startMs: 1_000, endMs: 2_000 }), [{ startMs: 1_200, endMs: 2_000, text: "ciao" }]);
+});
+test("high precision is an explicit WebGPU profile and never falls back before loading", async () => {
+  assert.equal(asrProfile("precision"), ASR_PROFILES.precision);
+  assert.equal(asrProfile("Xenova/whisper-small"), ASR_PROFILES.precision);
+  assert.equal(ASR_PROFILES.rapid.device, "wasm");
+  await assert.rejects(createAsrPipeline({ profile: ASR_PROFILES.precision }), /WebGPU non disponibile/);
 });
 test("transcription cannot implicitly download an unprepared model", () => {
   assert.equal(canTranscribe({ pipelineReady: false, preparedModel: "Xenova/whisper-tiny", selectedModel: "Xenova/whisper-tiny" }), false);

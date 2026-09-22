@@ -1,11 +1,26 @@
 export const TRANSFORMERS_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1";
-export const ASR_MODEL = "Xenova/whisper-tiny";
+export const ASR_PROFILES = Object.freeze({
+  rapid: Object.freeze({ id: "rapid", model: "Xenova/whisper-tiny", dtype: "q8", device: "wasm", label: "Rapido", size: "104,9 MB osservati" }),
+  balanced: Object.freeze({ id: "balanced", model: "Xenova/whisper-base", dtype: "q8", device: "wasm", label: "Qualità", size: "download e prestazioni da misurare" }),
+  precision: Object.freeze({ id: "precision", model: "Xenova/whisper-small", dtype: "fp16", device: "webgpu", label: "Alta precisione", size: "circa 489 MB di pesi fp16, più runtime/cache", requiresWebGPU: true }),
+});
+export const ASR_MODEL = ASR_PROFILES.rapid.model;
 let transformers;
 
-export async function createAsrPipeline({ model = ASR_MODEL, cacheOnly = false, progress = () => {} } = {}) {
+export function asrProfile(value = "rapid") {
+  return ASR_PROFILES[value] || Object.values(ASR_PROFILES).find((profile) => profile.model === value) || ASR_PROFILES.rapid;
+}
+
+export function webGpuAvailable() { return typeof navigator !== "undefined" && !!navigator.gpu; }
+
+export async function createAsrPipeline({ profile: selectedProfile, model = ASR_MODEL, cacheOnly = false, progress = () => {} } = {}) {
+  const profile = selectedProfile ? asrProfile(selectedProfile.id || selectedProfile) : asrProfile(model);
+  if (profile.requiresWebGPU && !webGpuAvailable()) throw new Error("WebGPU non disponibile: l’alta precisione richiede Chrome con WebGPU attivo.");
   transformers ||= await import(TRANSFORMERS_URL);
   transformers.env.allowRemoteModels = !cacheOnly;
-  try { return await transformers.pipeline("automatic-speech-recognition", model, { dtype: "q8", progress_callback: progress }); }
+  const options = { dtype: profile.dtype, progress_callback: progress };
+  if (profile.device === "webgpu") options.device = "webgpu";
+  try { return await transformers.pipeline("automatic-speech-recognition", profile.model, options); }
   finally { transformers.env.allowRemoteModels = true; }
 }
 
