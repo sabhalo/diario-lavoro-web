@@ -4,7 +4,7 @@ Questa è una web app statica, non un'applicazione macOS eseguibile. Non richied
 
 ## Dal repository pubblicato
 
-Repository privato pubblicato: `https://github.com/sabhalo/diario-lavoro-web`. L'accesso richiede un account GitHub autorizzato.
+Repository pubblico: `https://github.com/sabhalo/diario-lavoro-web`. Non serve autenticazione GitHub per il clone; servono comunque Git, Python 3 e Chrome consentiti dall'ambiente.
 
 ```bash
 git clone https://github.com/sabhalo/diario-lavoro-web.git diario-lavoro-web

@@ -2,6 +2,8 @@
 
 Web app locale, senza backend, account, analytics o upload automatici. I dati rimangono nell'IndexedDB del profilo browser che esegue l'app.
 
+Il repository pubblico corrente è [sabhalo/diario-lavoro-web](https://github.com/sabhalo/diario-lavoro-web); il branch predefinito è `codex/media-only-continuous-capture`. Per avviare la build corrente usare il clone Git descritto sotto, non pacchetti ZIP storici.
+
 ## Stato della build
 
 La build corrente registra solo **video e audio**: monitor con eventuale audio del computer e microfono restano flussi distinti. Non include ASR, trascrizione, modelli Whisper, download di modelli o ricerca/esportazione testuale derivata dall'audio.
@@ -51,4 +53,4 @@ I test automatici verificano funzioni di dominio, intervalli continui calcolati 
 
 Restano da eseguire sulla build finale, con una procedura sicura e dati innocui, la cattura continua e la riproduzione/export dei frammenti su Mac M4 Pro e su Windows, compresa una prova lunga, permessi, codec effettivi, quota e recupero dopo guasto. La prova breve Mac dei tre flussi è solo riferita dall'utente; non autorizza uso reale con dati aziendali o persone. Il gate policy aziendale rimane separato e obbligatorio.
 
-Il piano operativo della modifica è in [`.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md`](.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md). La specifica candidata storica è in [`docs/spec.md`](docs/spec.md); la nota iniziale ne indica le sezioni ASR superate dalla build corrente.
+Il piano operativo della modifica è in [`.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md`](.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md). La specifica candidata storica è in [`docs/spec.md`](docs/spec.md); la nota iniziale ne indica le sezioni ASR superate dalla build corrente. I documenti datati 2026-09-22 e lo spike di preflight sono evidenza storica, non istruzioni per avviare questa build.

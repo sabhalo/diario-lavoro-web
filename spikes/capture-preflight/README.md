@@ -1,5 +1,7 @@
 # Spike di preflight cattura Mac
 
+> **Spike storico separato dalla build pubblica.** Serve soltanto a leggere il preflight registrato nel ticket 05 e non verifica la cattura continua, la riproduzione o l'export della build corrente. Per avviare l'app usare il [README principale](../../README.md).
+
 Pagina statica per la prova minima del ticket 05. È intenzionalmente separata dall'app: non contiene backend, upload, account, analytics, storage o export. I flussi e i campioni di riascolto restano nella memoria della singola scheda e vengono fermati/eliminati da **Ferma e pulisci**, dal termine di una traccia o dalla chiusura della pagina.
 
 ## Cosa verifica e cosa non verifica
@@ -27,7 +29,7 @@ Prima di cliccare, annota macOS/Chrome/policy come indicato nel ticket 05. Nel s
 
 ## Trasferimento al Mac
 
-`../capture-preflight-mac-preflight.zip` contiene soltanto i quattro file della pagina e il template testuale, senza registrazioni né configurazioni. Esiste sul PC di sviluppo; non è automaticamente disponibile sul Mac e questa repository non presume un remote Git. Trasferiscilo solo con un canale locale o aziendale già approvato (per esempio la normale copia gestita dall'IT o un checkout già autorizzato), poi estrailo in una cartella locale del Mac. Non caricarlo su servizi pubblici o privati esterni per questa prova. Se non esiste un canale consentito, il coordinatore deve scegliere o ottenere un metodo di trasferimento prima del test: non c'è un deploy implicito.
+Non viene più distribuito un archivio ZIP di questo spike: avrebbe potuto essere confuso con la build corrente. Il repository pubblico si clona da `https://github.com/sabhalo/diario-lavoro-web.git`, ma questa pagina resta una prova storica separata e non è il flusso da usare per l'app attuale. Per avviare la build corrente seguire [il README principale](../../README.md) o [la guida Mac](../../docs/MAC-TRANSFER.md).
 
 ## Test locale svolto durante lo sviluppo
 
