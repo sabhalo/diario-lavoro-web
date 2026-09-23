@@ -1,33 +1,54 @@
 # Diario di lavoro
 
-Web app locale, senza backend, account, analytics o upload automatici, per ricordare e consultare il lavoro svolto. I dati rimangono in IndexedDB nel profilo del browser che la esegue.
+Web app locale, senza backend, account, analytics o upload automatici. I dati rimangono nell'IndexedDB del profilo browser che esegue l'app.
 
-## Avvio locale
+## Stato della build
 
-Serve una origine sicura: `localhost` in sviluppo oppure HTTPS. Su macOS, con `python3` già presente:
+La build corrente registra solo **video e audio**: monitor con eventuale audio del computer e microfono restano flussi distinti. Non include ASR, trascrizione, modelli Whisper, download di modelli o ricerca/esportazione testuale derivata dall'audio.
+
+Per ogni tratto l'app mantiene un `MediaRecorder` vivo per flusso e riceve frammenti progressivi ogni 30 secondi; non riavvia l'encoder fra due frammenti. Gli intervalli sono costruiti dai timecode del recorder con fallback monotono, per evitare lacune introdotte dalla finalizzazione o dalla scrittura di un blocco precedente. Display usa preferibilmente WebM VP8/Opus a 4 Mb/s più 128 kb/s audio; il microfono usa WebM/Opus a 128 kb/s, con fallback alla configurazione supportata dal browser.
+
+## Avvio locale e test
+
+Serve una origine sicura: `localhost` in sviluppo oppure HTTPS.
 
 ```bash
 python3 -m http.server 4173 --bind 127.0.0.1
 ```
 
-Aprire poi `http://127.0.0.1:4173/` nel browser. Eseguire i test puri del dominio con `npm test` (Node 20+).
+Aprire `http://127.0.0.1:4173/` nel browser. Eseguire i test del dominio con Node 20+:
+
+```bash
+npm test
+```
+
+## Avvio sul Mac
+
+Non è un'app eseguibile `.app`: è una web app statica che Chrome deve aprire da `localhost` o HTTPS. Dopo la pubblicazione del branch, sul Mac:
+
+```bash
+git clone <URL-GitHub-del-repository> diario-lavoro-web
+cd diario-lavoro-web
+git switch codex/media-only-continuous-capture
+python3 -m http.server 4173 --bind 127.0.0.1
+```
+
+Aprire `http://127.0.0.1:4173/` in Chrome e fermare il server con `Ctrl+C` al termine. Per aggiornare un clone già esistente, usare `git pull --ff-only` sul branch pubblicato. Servono Git, Python 3 e Chrome già consentiti dall'ambiente; non installare componenti o cambiare policy se mancanti.
+
+Al primo avvio di una cattura Chrome chiede di selezionare il monitor e l'eventuale audio del computer, quindi il microfono separatamente. Scegliere solo contenuti innocui per le prove e concedere permessi del sito/macOS solo se consentiti dalla policy aziendale. Non scegliere automaticamente modalità ridotte né aggirare permessi negati.
 
 ## Cosa fa
 
-- crea sessioni, richiede un’attestazione prima di catturare e conserva note/eventi/timeline;
-- richiede monitor con audio del computer e microfono in due richieste separate; verifica la superficie `monitor` e propone due campioni da riascoltare separatamente;
-- registra display e microfono in blocchi brevi distinti, salva prima il blocco e lo chiama `confermato` solo dopo un controllo locale di riproducibilità;
+- crea sessioni, richiede un'attestazione prima della cattura e conserva note, eventi e timeline;
+- richiede monitor/audio del computer e microfono in due richieste separate; verifica la superficie `monitor` e propone due campioni da riascoltare separatamente;
+- salva frammenti media progressivi senza stop/start periodico del recorder;
 - interrompe il tratto alla perdita di un flusso, dichiara lacune/interruzioni e riconcilia i tratti rimasti `in-corso` alla riapertura;
-- offre consultazione dei blocchi, cronologia, ricerca locale di titolo/note/eventi/segmenti, manifest+testo+media in export e rimozione con conferma dei dati controllati dall’app;
-- esporta sessioni e singoli tratti in un unico ZIP64; su Chrome con File System Access lo scrive in streaming nella destinazione scelta, mentre il fallback in memoria si ferma onestamente oltre 300 MB;
-- con un comando esplicito scarica Transformers.js e il modello Whisper selezionato (`tiny`, `base` o `small`), esegue ASR italiano nel browser sui blocchi confermati e conserva segmenti temporizzati, modello, runtime, run, copertura e diagnostica del segnale; una correzione manuale resta distinta.
+- offre cronologia, ricerca locale di titoli/note/eventi, riproduzione, export ZIP di manifest+media e rimozione con conferma dei dati controllati dall'app.
 
-## Limiti e gate
+## Evidenze e limiti
 
-Il runtime/modello ASR viene scaricato solo dal pulsante esplicito: codice da jsDelivr e modello pubblico `Xenova/whisper-tiny`, `Xenova/whisper-base` o `Xenova/whisper-small` da Hugging Face, secondo la scelta. Rapido resta Tiny q8/WASM (104,9 MB osservati nel browser di sviluppo). Alta qualità è Small q8/WASM, circa 252 MB di pesi prima di runtime/cache: nel loop sintetico ha restituito testo/timestamp, mentre il precedente Small fp16/WebGPU ha restituito output vuoto ed è stato ritirato. Prima di risultare pronto ogni profilo esegue il solo campione sintetico incluso; un output vuoto porta a stato errore. Questo non prova la qualità sulla voce Mac, che resta da misurare. Il browser scarica questi artefatti, ma non invia audio o testo della sessione per l’inferenza. Dopo il primo download l’utente deve scollegare la rete e usare la verifica cache; il relativo esito, qualità, velocità e memoria vanno ancora misurati su Chrome/macOS. La presenza di una traccia o di un livello non dimostra l’audio catturato: occorrono i due riascolti separati.
+I test automatici verificano funzioni di dominio, intervalli continui calcolati da timecode, archivio ZIP e preflight. Il browser locale è stato caricato senza comandi ASR e senza errori in console. Queste evidenze non dimostrano una registrazione reale.
 
-La prova breve Mac riferita dall’utente ha sbloccato lo sviluppo, non l’uso reale. L’utente ha poi riferito una trascrizione italiana del microfono quasi vuota e, in una seconda prova, migliorata ma ancora inutilizzabile: **AC7 non è superato** e la causa resta da diagnosticare sul Mac. AC1–AC10, inclusi due ore, recovery dopo guasti, quota, ASR/offline ed export riapribile, vanno eseguiti sulla build in Chrome/macOS. Il gate policy aziendale resta separato e obbligatorio prima di usare dati di lavoro o registrare persone.
+Restano da eseguire sulla build finale, con una procedura sicura e dati innocui, la cattura continua e la riproduzione/export dei frammenti su Mac M4 Pro e su Windows, compresa una prova lunga, permessi, codec effettivi, quota e recupero dopo guasto. La prova breve Mac dei tre flussi è solo riferita dall'utente; non autorizza uso reale con dati aziendali o persone. Il gate policy aziendale rimane separato e obbligatorio.
 
-I documenti decisionali restano in [`.scratch/diario-di-lavoro/map.md`](.scratch/diario-di-lavoro/map.md), la specifica in [`docs/spec.md`](docs/spec.md) e il piano in [`docs/implementation-plan.md`](docs/implementation-plan.md).
-
-Per diagnosticare ASR senza contenuti reali, aprire [`diagnostics/asr-loop.html`](diagnostics/asr-loop.html) da localhost: usa solo la frase sintetica italiana inclusa, misura RMS/durata/resample e può andare rosso se il riconoscimento è quasi vuoto. L’esito Mac riferito e la procedura di retest sono in [`docs/verification/ac7-mac-user-reported-2026-09-22.md`](docs/verification/ac7-mac-user-reported-2026-09-22.md).
+Il piano operativo della modifica è in [`.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md`](.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md). La specifica candidata storica è in [`docs/spec.md`](docs/spec.md); la nota iniziale ne indica le sezioni ASR superate dalla build corrente.

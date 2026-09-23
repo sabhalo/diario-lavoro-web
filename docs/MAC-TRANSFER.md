@@ -1,21 +1,29 @@
-# Pacchetto per prova locale su Mac
+# Avvio locale sul Mac
 
-Il file `diario-lavoro-web-mac-2026-09-22.zip` contiene la build statica e questa guida in `docs/MAC-TRANSFER.md`. Non contiene registrazioni, profili browser, credenziali o modello ASR già scaricato.
+Questa è una web app statica, non un'applicazione macOS eseguibile. Non richiede driver, helper o privilegi amministrativi; richiede però che Git, Python 3 e Chrome siano già consentiti dall'ambiente.
 
-1. Trasferire lo ZIP solo con un canale locale o aziendale consentito ed estrarlo in una cartella locale del Mac.
-2. Aprire Terminale, entrare nella cartella estratta e verificare `python3 --version`. Se `python3` manca o Terminale è vietato, non installare nulla: usare un’anteprima localhost già autorizzata dall’azienda.
-3. Avviare `python3 -m http.server 4173 --bind 127.0.0.1` e aprire `http://127.0.0.1:4173/` in Chrome. Fermare con `Ctrl+C` alla fine.
-4. Per ASR, scegliere prima il profilo e usare “Scarica e prepara ASR locale”: **Rapido** resta il default Tiny q8/WASM; **Alta qualità** scarica esplicitamente Whisper Small q8/WASM (circa 252 MB di pesi più runtime/cache). Durante la preparazione esegue il solo campione italiano sintetico incluso e non dichiara pronto un profilo che restituisce testo/chunk vuoti. Il runtime arriva da jsDelivr e il modello pubblico da Hugging Face; nessun audio/testo della sessione viene inviato per l’inferenza. “Trascrivi” non avvia download. Scollegare poi la rete e usare “Verifica cache offline”.
-5. L’export produce un solo ZIP64. In Chrome scegliere una destinazione locale quando richiesto: la scrittura può procedere a streaming per sessioni lunghe. Se quella capacità è gestita o assente, il fallback in memoria si interrompe oltre 300 MB invece di creare un archivio incompleto.
-6. Per AC7 prima di usare voce reale, aprire `http://127.0.0.1:4173/diagnostics/asr-loop.html`: usa solo il campione sintetico incluso. Per la nuova prova microfono seguire `docs/verification/ac7-mac-user-reported-2026-09-22.md` e riportare esclusivamente metriche e testo, non il media.
+## Dal repository pubblicato
 
-## Checklist della build — non ancora superata
+Sostituire `<URL-GitHub-del-repository>` con l'URL GitHub comunicato insieme al branch pubblicato.
 
-- AC1–AC2: monitor, audio sistema e microfono separati, con riascolti nello stesso intervallo.
-- AC3–AC4: pause/riprese, flusso perso e opt-in ridotto.
-- AC5–AC6: chiusura forzata, revoca, sleep, quota e recupero/lacune.
-- AC7–AC8: italiano reale, timestamp/qualità/tempo/RAM, offline dopo cache e audio integro in errore ASR.
-- AC9: almeno due ore, spazio, memoria, lag, integrità, ricerca ed export.
-- AC10: ZIP di sessione e tratto riaperto, con manifest/media/testo/lacune coerenti.
+```bash
+git clone <URL-GitHub-del-repository> diario-lavoro-web
+cd diario-lavoro-web
+git switch codex/media-only-continuous-capture
+python3 -m http.server 4173 --bind 127.0.0.1
+```
 
-Annotare versione macOS/Chrome, profilo, procedura, durata, misure ed esito. Il gate policy aziendale per dati reali o altre persone resta distinto e non viene superato da questo pacchetto.
+Aprire `http://127.0.0.1:4173/` in Chrome. Per una copia già clonata: entrare nella cartella, usare `git pull --ff-only` sul branch pubblicato e riavviare il server. Fermarlo con `Ctrl+C` quando non serve più.
+
+## Prima prova sicura
+
+1. Creare una sessione e rendere l'attestazione solo dopo avere verificato regole e consenso applicabili.
+2. In Chrome scegliere il **monitor intero** e, quando consentito, l'audio del computer; scegliere il microfono nella richiesta separata.
+3. Usare solo un suono e una voce innocui. Confermare i due riascolti separati prima della modalità completa.
+4. Avviare, lasciare scorrere almeno due frammenti da 30 secondi, fermare il tratto e verificare intervalli, riproduzione ed export locale.
+
+La build registra solo video e audio. Non scarica modelli, non esegue ASR e non genera trascrizioni. Non concedere permessi, non cambiare policy e non passare tacitamente a una modalità ridotta se l'ambiente aziendale lo vieta o non lo chiarisce.
+
+## Evidenze ancora richieste
+
+Il caricamento browser locale e i test automatici non dimostrano la cattura reale. Restano da misurare sul Mac M4 Pro e, separatamente, su Windows: permessi, codec effettivi, continuità tra frammenti, riproduzione/export, quota, recupero dopo crash/sleep e una prova lunga. Il gate policy aziendale per dati reali o altre persone rimane distinto e obbligatorio.
