@@ -10,3 +10,10 @@ export function isPlayableBlob(blob, kind, timeoutMs = 5_000) {
     window.setTimeout(() => finish(false), timeoutMs);
   });
 }
+
+export function stopPlayback(media, url, revokeObjectURL = URL.revokeObjectURL) {
+  media?.pause();
+  media?.removeAttribute("src");
+  media?.load();
+  if (url) revokeObjectURL(url);
+}

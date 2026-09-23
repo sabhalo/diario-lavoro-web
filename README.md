@@ -14,8 +14,8 @@ Aprire poi `http://127.0.0.1:4173/` nel browser. Eseguire i test puri del domini
 
 ## Cosa fa
 
-- crea sessioni, richiede un’attestazione prima di catturare e conserva note/eventi/timeline;
-- richiede monitor con audio del computer e microfono in due richieste separate; verifica la superficie `monitor` e propone due campioni da riascoltare separatamente;
+- crea sessioni e conserva note, eventi e timeline;
+- richiede monitor con audio del computer e microfono in due richieste separate; etichetta chiaramente una cattura come completa o ridotta in base ai flussi effettivamente selezionati;
 - registra display e microfono in blocchi brevi distinti, salva prima il blocco e lo chiama `confermato` solo dopo un controllo locale di riproducibilità;
 - interrompe il tratto alla perdita di un flusso, dichiara lacune/interruzioni e riconcilia i tratti rimasti `in-corso` alla riapertura;
 - offre consultazione dei blocchi, cronologia, ricerca locale di titolo/note/eventi/segmenti, manifest+testo+media in export e rimozione con conferma dei dati controllati dall’app;
@@ -24,7 +24,7 @@ Aprire poi `http://127.0.0.1:4173/` nel browser. Eseguire i test puri del domini
 
 ## Limiti e gate
 
-Il runtime/modello ASR viene scaricato solo dal pulsante esplicito: codice da jsDelivr e modello pubblico `Xenova/whisper-tiny`, `Xenova/whisper-base` o `Xenova/whisper-small` da Hugging Face, secondo la scelta. Rapido resta Tiny q8/WASM (104,9 MB osservati nel browser di sviluppo). Alta qualità è Small q8/WASM, circa 252 MB di pesi prima di runtime/cache: nel loop sintetico ha restituito testo/timestamp, mentre il precedente Small fp16/WebGPU ha restituito output vuoto ed è stato ritirato. Prima di risultare pronto ogni profilo esegue il solo campione sintetico incluso; un output vuoto porta a stato errore. Questo non prova la qualità sulla voce Mac, che resta da misurare. Il browser scarica questi artefatti, ma non invia audio o testo della sessione per l’inferenza. Dopo il primo download l’utente deve scollegare la rete e usare la verifica cache; il relativo esito, qualità, velocità e memoria vanno ancora misurati su Chrome/macOS. La presenza di una traccia o di un livello non dimostra l’audio catturato: occorrono i due riascolti separati.
+Il runtime/modello ASR viene scaricato solo dal pulsante esplicito: codice da jsDelivr e modello pubblico `Xenova/whisper-tiny`, `Xenova/whisper-base` o `Xenova/whisper-small` da Hugging Face, secondo la scelta. Rapido resta Tiny q8/WASM (104,9 MB osservati nel browser di sviluppo). Alta qualità è Small q8/WASM, circa 252 MB di pesi prima di runtime/cache: nel loop sintetico ha restituito testo/timestamp, mentre il precedente Small fp16/WebGPU ha restituito output vuoto ed è stato ritirato. Prima di risultare pronto ogni profilo esegue il solo campione sintetico incluso; un output vuoto porta a stato errore. Questo non prova la qualità sulla voce Mac, che resta da misurare. Il browser scarica questi artefatti, ma non invia audio o testo della sessione per l’inferenza. Dopo il primo download l’utente deve scollegare la rete e usare la verifica cache; il relativo esito, qualità, velocità e memoria vanno ancora misurati su Chrome/macOS. La presenza delle tracce indica solo la modalità disponibile e non dimostra il contenuto effettivamente catturato.
 
 La prova breve Mac riferita dall’utente ha sbloccato lo sviluppo. Dopo i precedenti risultati ASR quasi vuoti o inadeguati, l’utente ha riferito che la trascrizione più recente è «decisamente molto, molto meglio» e per ora adeguata: **AC7 è positivo secondo il suo riscontro**, senza benchmark, profilo o versione Chrome disponibili. AC1–AC6 e AC8–AC10 richiedono ancora prove sulla build in Chrome/macOS, incluse due ore, recovery dopo guasti, quota, uso offline ed export riapribile. Il gate policy aziendale resta separato e obbligatorio prima di usare dati di lavoro o registrare persone.
 

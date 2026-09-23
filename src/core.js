@@ -92,6 +92,10 @@ export function captureIsLive({ displaySurface, displayTracks = [], microphoneTr
   return displaySurface === "monitor" && displayTracks.length > 1 && microphoneTracks.length > 0 && displayTracks.every((track) => track === "live") && microphoneTracks.every((track) => track === "live") && systemTest?.passed === true && microphoneTest?.passed === true;
 }
 
+export function captureMode({ displaySurface, displayTracks = [], microphoneTracks = [] }) {
+  return displaySurface === "monitor" && displayTracks.length > 1 && microphoneTracks.length > 0 && displayTracks.every((track) => track === "live") && microphoneTracks.every((track) => track === "live") ? "completa" : "ridotta";
+}
+
 export function canTranscribe({ pipelineReady, preparedModel, selectedModel }) { return pipelineReady === true && !!preparedModel && preparedModel === selectedModel; }
 
 export function formatTime(ms = 0) {

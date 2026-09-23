@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canTranscribe, captureIsLive, closeRecording, exportableChunks, exportTranscript, formatTime, gapAfterConfirmed, gapFor, mediaFileName, nextRecording, overlapsScope, persistThenSettle, recordingExportScope, safeFileName, searchDocuments, storageAdmission, supersededAsrSegments, supersededAsrSegmentsForBlocks, transcriptText } from "../src/core.js";
+import { canTranscribe, captureIsLive, captureMode, closeRecording, exportableChunks, exportTranscript, formatTime, gapAfterConfirmed, gapFor, mediaFileName, nextRecording, overlapsScope, persistThenSettle, recordingExportScope, safeFileName, searchDocuments, storageAdmission, supersededAsrSegments, supersededAsrSegmentsForBlocks, transcriptText } from "../src/core.js";
 import { createZip, needsZip64, streamZip } from "../src/zip.js";
 import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, createAsrPreparationGate, usesWholeBlockTimestamp } from "../src/asr-core.js";
+import { stopPlayback } from "../src/media-core.js";
 
 const session = { id: "s1", startedAt: "2026-09-22T10:00:00.000Z" };
 test("recording keeps session timeline offsets", () => {
@@ -90,6 +91,15 @@ test("ZIP64 boundary is selected without allocating a multi-gigabyte archive", (
 test("preflight rejects tracks that ended before capture starts", () => {
   const base = { displaySurface: "monitor", displayTracks: ["live", "live"], microphoneTracks: ["live"], systemTest: { passed: true }, microphoneTest: { passed: true } };
   assert.equal(captureIsLive(base), true); assert.equal(captureIsLive({ ...base, microphoneTracks: ["ended"] }), false);
+});
+test("capture mode remains explicit without requiring listening confirmations", () => {
+  assert.equal(captureMode({ displaySurface: "monitor", displayTracks: ["live", "live"], microphoneTracks: ["live"] }), "completa");
+  assert.equal(captureMode({ displaySurface: "window", displayTracks: ["live"], microphoneTracks: ["live"] }), "ridotta");
+});
+test("closing playback pauses, unloads, and revokes its object URL", () => {
+  const calls = [], media = { pause: () => calls.push("pause"), removeAttribute: (name) => calls.push(`remove:${name}`), load: () => calls.push("load") };
+  stopPlayback(media, "blob:recording", (url) => calls.push(`revoke:${url}`));
+  assert.deepEqual(calls, ["pause", "remove:src", "load", "revoke:blob:recording"]);
 });
 test("ASR diagnostics preserve a measurable 16 kHz signal and clamp open timestamps", () => {
   const metrics = audioMetrics(Float32Array.from([0, .1, -.1, 0]), 16_000); assert.equal(metrics.samples, 4); assert.ok(Math.abs(metrics.peak - .1) < .00001); assert.ok(metrics.rms > .07);
