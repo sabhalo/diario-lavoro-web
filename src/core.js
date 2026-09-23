@@ -44,7 +44,7 @@ export function gapFor(recording, session, cause, at = Date.now()) {
   };
 }
 
-export function gapAfterConfirmed(recording, chunks, cause, certainty = "misurata") {
+export function gapAfterSaved(recording, chunks, cause, certainty = "misurata") {
   const endMs = recording?.offsetEndMs;
   const startMs = exportableChunks(chunks).reduce((latest, chunk) => Math.max(latest, chunk.endMs), recording?.offsetStartMs ?? 0);
   if (!Number.isFinite(endMs) || endMs <= startMs) return null;
@@ -63,7 +63,48 @@ export function safeFileName(value) {
 }
 
 export function exportableChunks(chunks) {
-  return chunks.filter((chunk) => chunk.status === "confermato").sort((a, b) => a.startMs - b.startMs);
+  return chunks.filter(hasStoredBlob).sort(compareChunks);
+}
+
+export function hasStoredBlob(chunk) {
+  return Number.isFinite(chunk?.blob?.size) && chunk.blob.size > 0;
+}
+
+function compareChunks(a, b) {
+  const byStart = (a.startMs ?? 0) - (b.startMs ?? 0);
+  return byStart || (a.index ?? 0) - (b.index ?? 0) || String(a.id).localeCompare(String(b.id));
+}
+
+export function exportMediaGroups(chunks) {
+  const byRecorderAndStream = new Map();
+  for (const chunk of exportableChunks(chunks)) {
+    const key = `${chunk.recordingId}\u0000${chunk.stream}`;
+    const group = byRecorderAndStream.get(key) || [];
+    group.push(chunk);
+    byRecorderAndStream.set(key, group);
+  }
+  return [...byRecorderAndStream.values()].map((allChunks) => {
+    const ordered = [...allChunks].sort((a, b) => (a.index ?? 0) - (b.index ?? 0) || compareChunks(a, b));
+    const first = ordered[0];
+    const startsWithHeader = Number.isInteger(first?.index) && first.index === 0;
+    const chunksForFile = [];
+    let expectedIndex = 0;
+    if (startsWithHeader) {
+      for (const chunk of ordered) {
+        const sameFormat = chunk.format === first.format;
+        if (!sameFormat || !Number.isInteger(chunk.index) || chunk.index !== expectedIndex) break;
+        chunksForFile.push(chunk);
+        expectedIndex += 1;
+      }
+    }
+    const skippedChunks = ordered.slice(chunksForFile.length);
+    const blob = chunksForFile.length ? new Blob(chunksForFile.map((chunk) => chunk.blob), { type: first.format || "application/octet-stream" }) : null;
+    return {
+      recordingId: first.recordingId, stream: first.stream, format: first.format, file: mediaFileName({ ...first, index: null }),
+      chunks: chunksForFile, skippedChunks, allChunks: ordered, blob,
+      startsWithHeader, continuous: skippedChunks.length === 0,
+    };
+  }).sort((a, b) => String(a.recordingId).localeCompare(String(b.recordingId)) || String(a.stream).localeCompare(String(b.stream)));
 }
 
 export function captureIsLive({ displaySurface, displayTracks = [], microphoneTracks = [], systemTest, microphoneTest }) {
@@ -96,7 +137,8 @@ export function mediaExtension(mime = "") {
 }
 
 export function mediaFileName(chunk) {
-  return `media/${chunk.recordingId.slice(-8)}-${chunk.stream}-${chunk.index}.${mediaExtension(chunk.format)}`;
+  const index = Number.isInteger(chunk.index) ? `-${chunk.index}` : "";
+  return `media/${chunk.recordingId.slice(-8)}-${chunk.stream}${index}.${mediaExtension(chunk.format)}`;
 }
 
 export function overlapsScope(item, startMs = -Infinity, endMs = Infinity) {

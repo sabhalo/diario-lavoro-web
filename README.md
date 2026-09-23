@@ -10,6 +10,8 @@ La build corrente registra solo **video e audio**: monitor con eventuale audio d
 
 Per ogni tratto l'app mantiene un `MediaRecorder` vivo per flusso e riceve frammenti progressivi ogni 30 secondi; non riavvia l'encoder fra due frammenti. Gli intervalli sono costruiti dai timecode del recorder con fallback monotono, per evitare lacune introdotte dalla finalizzazione o dalla scrittura di un blocco precedente. Display usa preferibilmente WebM VP8/Opus a 4 Mb/s più 128 kb/s audio; il microfono usa WebM/Opus a 128 kb/s, con fallback alla configurazione supportata dal browser.
 
+Un frammento `MediaRecorder` dopo il primo non è necessariamente un file apribile da solo: **salvato** significa che il suo Blob è stato scritto in IndexedDB, non che debba contenere un header autonomo. Per riproduzione ed export l'app ricompone in ordine i frammenti consecutivi dello stesso tratto e flusso, partendo dal frammento iniziale. Le registrazioni esistenti con la vecchia etichetta `non verificabile` sono incluse se il Blob è presente. Se manca l'header iniziale o un indice intermedio, il manifest lo dichiara e non presenta il resto come file riapribile.
+
 ## Avvio locale e test
 
 Serve una origine sicura: `localhost` in sviluppo oppure HTTPS.
@@ -36,6 +38,15 @@ python3 -m http.server 4173 --bind 127.0.0.1
 ```
 
 Aprire `http://127.0.0.1:4173/` in Chrome e fermare il server con `Ctrl+C` al termine. Per aggiornare un clone già esistente, usare `git pull --ff-only` sul branch pubblicato. Servono Git, Python 3 e Chrome già consentiti dall'ambiente; non installare componenti o cambiare policy se mancanti.
+
+## Esportare una registrazione già salvata sul Mac
+
+1. Aggiornare il clone con `git pull --ff-only`, riavviare il server e ricaricare la pagina in Chrome.
+2. Aprire la sessione già presente nello stesso profilo Chrome: i Blob IndexedDB non vengono cancellati né migrati distruttivamente.
+3. Selezionare **Esporta tratto** oppure **Esporta**. Lo ZIP contiene `manifest.json` e un file media ricomposto per ogni sequenza continua di recorder/flusso; monitor e microfono restano separati.
+4. Estrarre lo ZIP e aprire il file media nel browser o in un player compatibile. Se il manifest segnala header iniziale o continuità mancanti, quel segmento non viene spacciato per file riproducibile.
+
+Questo percorso è coperto da test sintetici ma non è ancora una prova eseguita sul Mac o su Windows.
 
 Al primo avvio di una cattura Chrome chiede di selezionare il monitor e l'eventuale audio del computer, quindi il microfono separatamente. Scegliere solo contenuti innocui per le prove e concedere permessi del sito/macOS solo se consentiti dalla policy aziendale. Non scegliere automaticamente modalità ridotte né aggirare permessi negati.
 

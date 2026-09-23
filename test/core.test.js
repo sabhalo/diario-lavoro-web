@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { captureIsLive, closeRecording, continuousBlockInterval, exportableChunks, formatTime, gapAfterConfirmed, gapFor, mediaFileName, nextRecording, overlapsScope, recordingExportScope, safeFileName, searchDocuments, storageAdmission } from "../src/core.js";
+import { captureIsLive, closeRecording, continuousBlockInterval, exportableChunks, exportMediaGroups, formatTime, gapAfterSaved, gapFor, mediaFileName, nextRecording, overlapsScope, recordingExportScope, safeFileName, searchDocuments, storageAdmission } from "../src/core.js";
 import { createZip, needsZip64, streamZip } from "../src/zip.js";
 
 const session = { id: "s1", startedAt: "2026-09-22T10:00:00.000Z" };
@@ -14,9 +14,9 @@ test("gap is explicit and never negative", () => {
   const recording = { id: "r1", offsetEndMs: 900 };
   assert.equal(gapFor(recording, session, "sleep", Date.parse(session.startedAt) + 1_200).startMs, 900);
 });
-test("interruption gap starts after the last confirmed block", () => {
+test("interruption gap starts after the last saved block", () => {
   const recording = { id: "r1", sessionId: "s1", offsetStartMs: 100, offsetEndMs: 900 };
-  assert.deepEqual(gapAfterConfirmed(recording, [{ status: "confermato", endMs: 700 }], "revoca"), { recordingId: "r1", sessionId: "s1", startMs: 700, endMs: 900, cause: "revoca", certainty: "misurata" });
+  assert.deepEqual(gapAfterSaved(recording, [{ status: "non verificabile", endMs: 700, blob: new Blob(["saved"]) }], "revoca"), { recordingId: "r1", sessionId: "s1", startMs: 700, endMs: 900, cause: "revoca", certainty: "misurata" });
 });
 test("storage admission rejects projected quota exhaustion", () => {
   assert.equal(storageAdmission({ usage: 95, quota: 100 }, 1).allowed, false);
@@ -45,8 +45,24 @@ test("export helpers preserve media-only scope and MIME extensions", () => {
   assert.equal(overlapsScope({ startMs: 50, endMs: 150 }, 100, 200), true);
   assert.deepEqual(recordingExportScope({ offsetStartMs: 100, offsetEndMs: null }, 250), { startMs: 100, endMs: 250, endDerivedAtExport: true });
 });
-test("media export excludes blocks that were not confirmed", () => {
-  assert.deepEqual(exportableChunks([{ id: "a", status: "scritto", startMs: 0 }, { id: "b", status: "confermato", startMs: 20 }]).map((item) => item.id), ["b"]);
+test("export groups saved fragments even when each fragment is not independently playable", async () => {
+  const chunks = [
+    { id: "first", recordingId: "r1", stream: "display", index: 0, startMs: 0, endMs: 30_000, format: "video/webm", status: "non verificabile", blob: new Blob(["header-"]) },
+    { id: "second", recordingId: "r1", stream: "display", index: 1, startMs: 30_000, endMs: 60_000, format: "video/webm", status: "non verificabile", blob: new Blob(["continuation"]) },
+  ];
+  assert.deepEqual(exportableChunks(chunks).map((item) => item.id), ["first", "second"]);
+  const groups = exportMediaGroups(chunks);
+  assert.equal(groups.length, 1);
+  assert.deepEqual(groups[0].chunks.map((item) => item.id), ["first", "second"]);
+  assert.equal(await groups[0].blob.text(), "header-continuation");
+  const archive = new Uint8Array(await (await createZip([{ name: "manifest.json", data: "{}" }, ...groups.filter((group) => group.blob).map((group) => ({ name: group.file, data: group.blob }))])).arrayBuffer());
+  assert.match(new TextDecoder().decode(archive), /media\/r1-display\.webm/);
+});
+test("export does not claim a continuation without the recorder header is reopenable", () => {
+  const [group] = exportMediaGroups([{ id: "later", recordingId: "r1", stream: "microfono", index: 1, startMs: 30_000, endMs: 60_000, format: "audio/webm", status: "salvato", blob: new Blob(["continuation"]) }]);
+  assert.equal(group.startsWithHeader, false);
+  assert.equal(group.blob, null);
+  assert.deepEqual(group.skippedChunks.map((chunk) => chunk.id), ["later"]);
 });
 test("ZIP fallback contains only manifest and media entries", async () => {
   const bytes = new Uint8Array(await (await createZip([{ name: "manifest.json", data: "{}" }, { name: "media/mic-0.webm", data: Uint8Array.of(1, 2) }])).arrayBuffer());
