@@ -43,6 +43,15 @@ test("legacy migration is idempotent and erases browser data only after verified
   assert.equal(await (await archive.readFragment(await archive.get("chunks", "c1"))).text(), "audio!");
 });
 
+test("legacy migration reports copy, verification, and completion progress", async () => {
+  const directory = new MemoryDirectoryAdapter(), archive = await FileArchive.open(directory), progress = [];
+  const legacy = { all: async (store) => ({ sessions: [session], recordings: [], chunks: [chunk], notes: [], events: [], gaps: [] })[store], erase: async () => {} };
+  await archive.migrateLegacy(legacy, { onProgress: (update) => progress.push(update) });
+  assert.deepEqual(progress[0], { phase: "copy", completed: 0, total: 2 });
+  assert.ok(progress.some((update) => update.phase === "verify"));
+  assert.deepEqual(progress.at(-1), { phase: "complete", completed: 2, total: 2 });
+});
+
 test("failed fragment write does not create saved chunk metadata", async () => {
   const directory = new MemoryDirectoryAdapter(), archive = await FileArchive.open(directory), media = await directory.getDirectoryHandle("sessions", { create: true });
   const sessionDirectory = await media.getDirectoryHandle("s1", { create: true }), mediaDirectory = await sessionDirectory.getDirectoryHandle("media", { create: true }), recordingDirectory = await mediaDirectory.getDirectoryHandle("r1", { create: true }), streamDirectory = await recordingDirectory.getDirectoryHandle("microfono", { create: true });
