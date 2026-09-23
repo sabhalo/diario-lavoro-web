@@ -4,10 +4,10 @@ Questa è una web app statica, non un'applicazione macOS eseguibile. Non richied
 
 ## Dal repository pubblicato
 
-Sostituire `<URL-GitHub-del-repository>` con l'URL GitHub comunicato insieme al branch pubblicato.
+Repository privato pubblicato: `https://github.com/sabhalo/diario-lavoro-web`. L'accesso richiede un account GitHub autorizzato.
 
 ```bash
-git clone <URL-GitHub-del-repository> diario-lavoro-web
+git clone https://github.com/sabhalo/diario-lavoro-web.git diario-lavoro-web
 cd diario-lavoro-web
 git switch codex/media-only-continuous-capture
 python3 -m http.server 4173 --bind 127.0.0.1

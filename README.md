@@ -27,7 +27,7 @@ npm test
 Non è un'app eseguibile `.app`: è una web app statica che Chrome deve aprire da `localhost` o HTTPS. Dopo la pubblicazione del branch, sul Mac:
 
 ```bash
-git clone <URL-GitHub-del-repository> diario-lavoro-web
+git clone https://github.com/sabhalo/diario-lavoro-web.git diario-lavoro-web
 cd diario-lavoro-web
 git switch codex/media-only-continuous-capture
 python3 -m http.server 4173 --bind 127.0.0.1
