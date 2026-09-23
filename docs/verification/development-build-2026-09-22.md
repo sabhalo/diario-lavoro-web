@@ -1,5 +1,7 @@
 # Verifica build di sviluppo — 2026-09-22
 
+> **Registro storico della variante ASR rimossa.** I numeri dei test, i comandi e le osservazioni qui sotto non descrivono il branch pubblico corrente. Per il perimetro attuale solo video/audio e le verifiche ancora richieste, vedere il [ticket 08](../../.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md) e il [README](../../README.md).
+
 ## Ambiente osservato
 
 La build statica è stata servita localmente su Windows con Python 3.12.14 e aperta nel browser integrato Codex su `http://127.0.0.1:4173/`. Node 20.20.0 ha eseguito i test puri. Questo **non** è Chrome/macOS aziendale e non è una prova AC.

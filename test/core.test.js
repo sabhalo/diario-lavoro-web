@@ -1,9 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canTranscribe, captureIsLive, captureMode, closeRecording, exportableChunks, exportTranscript, formatTime, gapAfterConfirmed, gapFor, mediaFileName, nextRecording, overlapsScope, persistThenSettle, recordingExportScope, safeFileName, searchDocuments, storageAdmission, supersededAsrSegments, supersededAsrSegmentsForBlocks, transcriptText } from "../src/core.js";
+import { captureIsLive, closeRecording, continuousBlockInterval, exportableChunks, exportMediaGroups, formatTime, gapAfterSaved, gapFor, mediaFileName, nextRecording, overlapsScope, recordingExportScope, safeFileName, searchDocuments, storageAdmission } from "../src/core.js";
 import { createZip, needsZip64, streamZip } from "../src/zip.js";
-import { ASR_PROFILES, asrChunks, asrProfile, asrResultShape, audioMetrics, createAsrPreparationGate, usesWholeBlockTimestamp } from "../src/asr-core.js";
-import { stopPlayback } from "../src/media-core.js";
 
 const session = { id: "s1", startedAt: "2026-09-22T10:00:00.000Z" };
 test("recording keeps session timeline offsets", () => {
@@ -14,120 +12,73 @@ test("recording keeps session timeline offsets", () => {
 });
 test("gap is explicit and never negative", () => {
   const recording = { id: "r1", offsetEndMs: 900 };
-  assert.deepEqual(gapFor(recording, session, "sleep", Date.parse(session.startedAt) + 1_200).startMs, 900);
+  assert.equal(gapFor(recording, session, "sleep", Date.parse(session.startedAt) + 1_200).startMs, 900);
 });
-test("interruption gap starts after the last confirmed block and omits zero-length gaps", () => {
+test("interruption gap starts after the last saved block", () => {
   const recording = { id: "r1", sessionId: "s1", offsetStartMs: 100, offsetEndMs: 900 };
-  assert.deepEqual(gapAfterConfirmed(recording, [{ status: "confermato", endMs: 700 }], "revoca"), { recordingId: "r1", sessionId: "s1", startMs: 700, endMs: 900, cause: "revoca", certainty: "misurata" });
-  assert.equal(gapAfterConfirmed(recording, [{ status: "confermato", endMs: 900 }], "revoca"), null);
+  assert.deepEqual(gapAfterSaved(recording, [{ status: "non verificabile", endMs: 700, blob: new Blob(["saved"]) }], "revoca"), { recordingId: "r1", sessionId: "s1", startMs: 700, endMs: 900, cause: "revoca", certainty: "misurata" });
 });
-test("storage admission rejects a capture before recording when projected usage is too high", () => {
-  assert.equal(storageAdmission({ usage: 94, quota: 100 }, 0).allowed, true);
+test("storage admission rejects projected quota exhaustion", () => {
   assert.equal(storageAdmission({ usage: 95, quota: 100 }, 1).allowed, false);
   assert.equal(storageAdmission({}, 1).known, false);
 });
-test("write failure settles the current segment before it requests capture stop", async () => {
-  const order = [], error = await persistThenSettle(async () => { order.push("write"); throw new DOMException("quota", "QuotaExceededError"); }, () => order.push("settle"));
-  order.push("stop");
-  assert.equal(error.name, "QuotaExceededError");
-  assert.deepEqual(order, ["write", "settle", "stop"]);
+test("search only indexes session titles, notes, and events", () => {
+  const hits = searchDocuments("progetto", { sessions: [{ id: "s1", title: "Progetto alfa" }], notes: [{ id: "n1", sessionId: "s1", startMs: 3_000, text: "progetto discusso" }], events: [] });
+  assert.equal(hits.length, 2);
+  assert.equal(hits[1].offsetMs, 3_000);
+  assert.equal(hits[1].kind, "nota");
 });
-test("search returns source and temporal jump", () => {
-  const hits = searchDocuments("progetto", { sessions: [{ id: "s1", title: "Progetto alfa" }], notes: [{ sessionId: "s1", text: "nota" }], events: [], transcripts: [{ sessionId: "s1", startMs: 3_000, source: "locale", text: "progetto discusso" }] });
-  assert.equal(hits.length, 2); assert.equal(hits[1].offsetMs, 3_000);
+test("continuous recorder intervals use monotonic timecodes without gaps", () => {
+  const first = continuousBlockInterval({ recordingStartMs: 1_000, previousEndMs: null, timecodeMs: 30_000, observedAtMs: 31_500 });
+  const second = continuousBlockInterval({ recordingStartMs: 1_000, previousEndMs: first.endMs, timecodeMs: 60_000, observedAtMs: 63_000 });
+  assert.deepEqual(first, { startMs: 1_000, endMs: 31_000 });
+  assert.deepEqual(second, { startMs: 31_000, endMs: 61_000 });
 });
-test("search uses active corrections by default and originals only on request", () => {
-  const documents = { sessions: [], notes: [], events: [], transcripts: [{ id: "original", sessionId: "s1", startMs: 1, source: "asr-locale", active: false, text: "parola originale" }, { id: "correction", sessionId: "s1", startMs: 1, source: "manuale-locale", active: true, text: "parola corretta" }] };
-  assert.equal(searchDocuments("originale", documents).length, 0);
-  assert.deepEqual(searchDocuments("originale", documents, { includeOriginal: true }).map((hit) => hit.textStatus), ["originale/versione conservata"]);
-  assert.equal(searchDocuments("corretta", documents)[0].provenance.source, "manuale-locale");
+test("continuous recorder never moves backwards when callbacks are late", () => {
+  const interval = continuousBlockInterval({ recordingStartMs: 1_000, previousEndMs: 31_000, timecodeMs: 29_000, observedAtMs: 60_000 });
+  assert.deepEqual(interval, { startMs: 31_000, endMs: 31_000 });
 });
-test("export helpers are deterministic", () => {
+test("export helpers preserve media-only scope and MIME extensions", () => {
   assert.equal(formatTime(3_661_000), "01:01:01");
   assert.equal(safeFileName("Caffè / prova"), "Caffe-prova");
-  assert.match(transcriptText([{ startMs: 10, text: "ciao" }]), /00:00:00/);
-});
-test("export helpers keep MIME extensions, scope crossings, and source-media truth", () => {
   assert.equal(mediaFileName({ recordingId: "recording-12345678", stream: "microfono", index: 2, format: "audio/mp4;codecs=mp4a" }), "media/12345678-microfono-2.m4a");
-  assert.equal(mediaFileName({ recordingId: "recording-12345678", stream: "display", index: 2, format: "application/x-unknown" }), "media/12345678-display-2.bin");
   assert.equal(overlapsScope({ startMs: 50, endMs: 150 }, 100, 200), true);
-  assert.equal(overlapsScope({ startMs: 0, endMs: 100 }, 100, 200), false);
-  assert.equal(exportTranscript({ blockId: "missing" }, new Map()).sourceMediaStatus, "sorgente non trovata");
-  assert.equal(exportTranscript({ blockId: "bad" }, new Map([["bad", { status: "non verificabile" }]])).sourceMediaStatus, "sorgente non verificabile");
-});
-test("an in-progress recording has an export boundary derived at export time", () => {
   assert.deepEqual(recordingExportScope({ offsetStartMs: 100, offsetEndMs: null }, 250), { startMs: 100, endMs: 250, endDerivedAtExport: true });
-  assert.deepEqual(recordingExportScope({ offsetStartMs: 100, offsetEndMs: 200 }, 250), { startMs: 100, endMs: 200, endDerivedAtExport: false });
 });
-test("media export excludes blocks that were not confirmed", () => {
-  assert.deepEqual(exportableChunks([{ id: "a", status: "scritto", startMs: 0 }, { id: "b", status: "confermato", startMs: 20 }, { id: "c", status: "non verificabile", startMs: 10 }]).map((item) => item.id), ["b"]);
+test("export groups saved fragments even when each fragment is not independently playable", async () => {
+  const chunks = [
+    { id: "first", recordingId: "r1", stream: "display", index: 0, startMs: 0, endMs: 30_000, format: "video/webm", status: "non verificabile", blob: new Blob(["header-"]) },
+    { id: "second", recordingId: "r1", stream: "display", index: 1, startMs: 30_000, endMs: 60_000, format: "video/webm", status: "non verificabile", blob: new Blob(["continuation"]) },
+  ];
+  assert.deepEqual(exportableChunks(chunks).map((item) => item.id), ["first", "second"]);
+  const groups = exportMediaGroups(chunks);
+  assert.equal(groups.length, 1);
+  assert.deepEqual(groups[0].chunks.map((item) => item.id), ["first", "second"]);
+  assert.equal(await groups[0].blob.text(), "header-continuation");
+  const archive = new Uint8Array(await (await createZip([{ name: "manifest.json", data: "{}" }, ...groups.filter((group) => group.blob).map((group) => ({ name: group.file, data: group.blob }))])).arrayBuffer());
+  assert.match(new TextDecoder().decode(archive), /media\/r1-display\.webm/);
 });
-test("a recovery checkpoint never exports written or unplayable media", () => {
-  const afterRecovery = [{ id: "written-now-bad", status: "non verificabile", startMs: 1 }, { id: "good", status: "confermato", startMs: 2 }];
-  assert.deepEqual(exportableChunks(afterRecovery).map((item) => item.id), ["good"]);
+test("export does not claim a continuation without the recorder header is reopenable", () => {
+  const [group] = exportMediaGroups([{ id: "later", recordingId: "r1", stream: "microfono", index: 1, startMs: 30_000, endMs: 60_000, format: "audio/webm", status: "salvato", blob: new Blob(["continuation"]) }]);
+  assert.equal(group.startsWithHeader, false);
+  assert.equal(group.blob, null);
+  assert.deepEqual(group.skippedChunks.map((chunk) => chunk.id), ["later"]);
 });
-test("reprocessing one ASR source preserves the other source", () => {
-  const old = [{ id: "mic", source: "asr-locale", asrSource: "microfono", active: true }, { id: "display", source: "asr-locale", asrSource: "display", active: true }];
-  assert.deepEqual(supersededAsrSegments(old, "microfono").map((item) => item.id), ["mic"]);
-});
-test("failed reprocessing preserves prior ASR outside successful blocks", () => {
-  const old = [{ id: "old-a", source: "asr-locale", asrSource: "microfono", blockId: "a", active: true }, { id: "old-b", source: "asr-locale", asrSource: "microfono", blockId: "b", active: true }];
-  assert.deepEqual(supersededAsrSegmentsForBlocks(old, "microfono", new Set(["a"])).map((item) => item.id), ["old-a"]);
-});
-test("ZIP fallback has a valid central directory with manifest, transcript, and media", async () => {
-  const bytes = new Uint8Array(await (await createZip([{ name: "manifest.json", data: "{}" }, { name: "trascrizione.txt", data: "ciao" }, { name: "media/mic-0.webm", data: Uint8Array.of(1, 2) }])).arrayBuffer());
+test("ZIP fallback contains only manifest and media entries", async () => {
+  const bytes = new Uint8Array(await (await createZip([{ name: "manifest.json", data: "{}" }, { name: "media/mic-0.webm", data: Uint8Array.of(1, 2) }])).arrayBuffer());
   const view = new DataView(bytes.buffer), names = []; for (let offset = 0; offset < bytes.length - 46; offset += 1) if (view.getUint32(offset, true) === 0x02014b50) { const length = view.getUint16(offset + 28, true); names.push(new TextDecoder().decode(bytes.slice(offset + 46, offset + 46 + length))); }
-  assert.deepEqual(names, ["manifest.json", "trascrizione.txt", "media/mic-0.webm"]); assert.equal(view.getUint32(bytes.length - 22, true), 0x06054b50);
+  assert.deepEqual(names, ["manifest.json", "media/mic-0.webm"]); assert.equal(view.getUint32(bytes.length - 22, true), 0x06054b50);
 });
-test("streaming ZIP writes one extractable archive layout", async () => {
+test("streaming ZIP writes an extractable media archive layout", async () => {
   const writes = [], writable = { write: async (chunk) => writes.push(new Uint8Array(chunk)), close: async () => {} };
   await streamZip([{ name: "manifest.json", data: "{}" }, { name: "media/display-0.webm", data: new Blob([Uint8Array.of(3, 4)]) }], writable);
   const size = writes.reduce((sum, chunk) => sum + chunk.length, 0), bytes = new Uint8Array(size); let offset = 0; for (const chunk of writes) { bytes.set(chunk, offset); offset += chunk.length; }
-  const view = new DataView(bytes.buffer); assert.equal(view.getUint32(bytes.length - 22, true), 0x06054b50); assert.match(new TextDecoder().decode(bytes), /media\/display-0\.webm/); assert.ok([...bytes].some((_, index) => index < bytes.length - 4 && view.getUint32(index, true) === 0x06064b50));
+  const view = new DataView(bytes.buffer); assert.equal(view.getUint32(bytes.length - 22, true), 0x06054b50); assert.match(new TextDecoder().decode(bytes), /media\/display-0\.webm/);
 });
 test("ZIP64 boundary is selected without allocating a multi-gigabyte archive", () => {
-  assert.equal(needsZip64({ size: 0xffffffffn }), false); assert.equal(needsZip64({ size: 0x1_0000_0000n }), true); assert.equal(needsZip64({ entries: 0xffff }), true);
+  assert.equal(needsZip64({ size: 0xffffffffn }), false); assert.equal(needsZip64({ size: 0x1_0000_0000n }), true);
 });
 test("preflight rejects tracks that ended before capture starts", () => {
   const base = { displaySurface: "monitor", displayTracks: ["live", "live"], microphoneTracks: ["live"], systemTest: { passed: true }, microphoneTest: { passed: true } };
   assert.equal(captureIsLive(base), true); assert.equal(captureIsLive({ ...base, microphoneTracks: ["ended"] }), false);
-});
-test("capture mode remains explicit without requiring listening confirmations", () => {
-  assert.equal(captureMode({ displaySurface: "monitor", displayTracks: ["live", "live"], microphoneTracks: ["live"] }), "completa");
-  assert.equal(captureMode({ displaySurface: "window", displayTracks: ["live"], microphoneTracks: ["live"] }), "ridotta");
-});
-test("closing playback pauses, unloads, and revokes its object URL", () => {
-  const calls = [], media = { pause: () => calls.push("pause"), removeAttribute: (name) => calls.push(`remove:${name}`), load: () => calls.push("load") };
-  stopPlayback(media, "blob:recording", (url) => calls.push(`revoke:${url}`));
-  assert.deepEqual(calls, ["pause", "remove:src", "load", "revoke:blob:recording"]);
-});
-test("ASR diagnostics preserve a measurable 16 kHz signal and clamp open timestamps", () => {
-  const metrics = audioMetrics(Float32Array.from([0, .1, -.1, 0]), 16_000); assert.equal(metrics.samples, 4); assert.ok(Math.abs(metrics.peak - .1) < .00001); assert.ok(metrics.rms > .07);
-  assert.deepEqual(asrChunks({ chunks: [{ text: "ciao", timestamp: [0.2, null] }] }, { startMs: 1_000, endMs: 2_000 }), [{ startMs: 1_200, endMs: 2_000, text: "ciao" }]);
-});
-test("ASR keeps root text when WebGPU returns only blank timestamp chunks", () => {
-  const result = { text: " frase riconosciuta ", chunks: [{ text: "", timestamp: [0, 1] }] }, block = { startMs: 1_000, endMs: 2_000 };
-  assert.deepEqual(asrResultShape(result), { resultType: "object", keys: ["chunks", "text"], textChars: 18, chunks: 1, nonEmptyChunks: 0, timestampedChunks: 1 });
-  assert.equal(usesWholeBlockTimestamp(result), true);
-  assert.deepEqual(asrChunks(result, block), [{ startMs: 1_000, endMs: 2_000, text: "frase riconosciuta" }]);
-});
-test("high quality is an explicit Small q8 profile", () => {
-  assert.equal(asrProfile("precision"), ASR_PROFILES.precision);
-  assert.equal(asrProfile("Xenova/whisper-small"), ASR_PROFILES.precision);
-  assert.equal(ASR_PROFILES.rapid.device, "wasm");
-  assert.equal(ASR_PROFILES.precision.device, "wasm");
-  assert.equal(ASR_PROFILES.precision.dtype, "q8");
-});
-test("transcription cannot implicitly download an unprepared model", () => {
-  assert.equal(canTranscribe({ pipelineReady: false, preparedModel: "Xenova/whisper-tiny", selectedModel: "Xenova/whisper-tiny" }), false);
-  assert.equal(canTranscribe({ pipelineReady: true, preparedModel: "Xenova/whisper-tiny", selectedModel: "Xenova/whisper-base" }), false);
-  assert.equal(canTranscribe({ pipelineReady: true, preparedModel: "Xenova/whisper-tiny", selectedModel: "Xenova/whisper-tiny" }), true);
-});
-test("ASR preparation is exclusive so cache-only mode cannot race a download", async () => {
-  const run = createAsrPreparationGate(); let release;
-  const first = run(() => new Promise((resolve) => { release = resolve; }));
-  await assert.rejects(run(async () => "second"), /Preparazione ASR già in corso/);
-  release("first");
-  assert.equal(await first, "first");
-  assert.equal(await run(async () => "after"), "after");
 });

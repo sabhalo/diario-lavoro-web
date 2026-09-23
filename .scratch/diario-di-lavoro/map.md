@@ -27,6 +27,7 @@ Una specifica tecnicamente verificata, pronta per scomposizione e implementazion
 - [Definire linguaggio e unità di lavoro](issues/03-definire-linguaggio-e-unita-di-lavoro.md): la sessione è l'episodio e l'unità primaria di ricerca/export; registrazioni, flussi, segmenti ed eventi mantengono confini e lacune espliciti.
 - [Definire esperienza e criteri di accettazione](issues/04-definire-esperienza-e-criteri-di-accettazione.md): modalità completa verificata con prova dei tre flussi, riduzione solo esplicita, recupero e trascrizione locale; accettazione richiede test reali sul Mac, incluso tratto di almeno due ore.
 - [Definire modello dati e ricerca locale](issues/07-definire-modello-dati-e-ricerca.md): identità e timeline esplicite, blocchi recuperabili verificati, lacune, versioni ASR e correzioni, indice per documento sorgente ed export con ambito/provenienza; tecnologia e affidabilità restano da verificare sul Mac.
+- [Archivio in cartella locale obbligatoria](issues/09-archivio-cartella-locale.md): il browser conserva solo il handle della cartella; dati, media, journal e metadati vivono in file. La migrazione IndexedDB è guidata, verificata e riprendibile.
 - [Definire vincoli aziendali di registrazione e conservazione](issues/06-definire-privacy-e-conservazione-aziendale.md): defaults locali e attestazione per sessione; policy, consenso, retention e export richiedono prove aziendali prima dell'uso reale, separate dalla verifica tecnica Mac.
 
 ## Not yet specified

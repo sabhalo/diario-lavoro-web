@@ -2,6 +2,8 @@
 
 Linguaggio condiviso per descrivere il lavoro ricordato e consultato nel Diario di lavoro.
 
+> Alcuni termini ASR sotto sono storici del modello candidato. La build pubblica corrente è solo video/audio e non crea né conserva trascrizioni; per il perimetro attuale vedere il [README](README.md) e il [ticket 08](.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md).
+
 ## Language
 
 **Sessione di lavoro**:

@@ -1,5 +1,7 @@
 # Matrice AC e gate — stato delle evidenze, 2026-09-22
 
+> **Matrice storica della variante ASR rimossa.** AC7 e le parti ASR di AC8/AC10 non sono criteri della build pubblica corrente. Non usare questa matrice per avviare o dichiarare verificata la build solo video/audio; seguire il [ticket 08](../../.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md).
+
 ## Regola di lettura
 
 Gli stati non sono intercambiabili. **Implementato/localmente verificato** significa soltanto build o test sintetici osservati su Windows. **Mac verificato dall'utente** è un resoconto dell'utente sulla build target, non un'osservazione dell'agente; non implica metriche, versione o profilo non riportati. **Non verificato** non è un fallimento del prodotto: la prova non è disponibile.

@@ -1,5 +1,7 @@
 # Prova breve Mac riferita dall'utente — 2026-09-22
 
+> **Registro storico di un preflight separato.** Non è una prova della build pubblica corrente né una guida per avviarla. Per il flusso attuale usare [MAC-TRANSFER.md](../MAC-TRANSFER.md); cattura, codec, continuità ed export su Mac/Windows restano da verificare.
+
 **Esito: positivo per la fattibilità preliminare dei tre flussi, secondo il resoconto dell'utente.** L'agente non ha osservato direttamente la schermata, le tracce o i campioni. Questo registro non attesta l'idoneità della build finale né l'autorizzazione aziendale all'uso reale.
 
 | Campo | Evidenza disponibile |

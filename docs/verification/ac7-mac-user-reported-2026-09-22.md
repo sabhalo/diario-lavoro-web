@@ -1,5 +1,7 @@
 # AC7 — esito Mac riferito dall’utente, 2026-09-22
 
+> **Registro storico della variante ASR rimossa.** I percorsi di diagnostica e il fixture citati sotto non fanno parte della build pubblica corrente e non vanno eseguiti. L'evidenza è conservata solo come contesto; l'attuale perimetro è nel [ticket 08](../../.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md).
+
 ## Esito
 
 **AC7 superato solo secondo testimonianza utente.** L’esito più recente dell’utente sulla build target è: trascrizione «decisamente molto, molto meglio» e per ora adeguata. L’agente non ha osservato campione, schermata, metriche, versione Chrome, output completo o benchmark; questa è una testimonianza utente, non una misura indipendente. Il profilo/modello effettivamente usato nella prova positiva è **sconosciuto**: non va dedotto dai profili disponibili nella build o dalle prove Windows.
@@ -8,7 +10,7 @@ Cronologia: una prova Mac precedente era stata riferita quasi vuota e una second
 
 ## Feedback loop locale
 
-È stato creato il campione innocuo sintetico `test/fixtures/italian-synthetic.wav` con la frase: “Il diario di lavoro registra una frase italiana locale.” Il percorso `diagnostics/asr-loop.html` esegue il decoder della build, resample mono 16 kHz, RMS/durata, Whisper con `language: italian`, timestamp e verifica testo.
+Nella variante precedente era stato creato un campione innocuo sintetico con la frase: “Il diario di lavoro registra una frase italiana locale.” Il fixture e la diagnostica ASR corrispondenti sono stati rimossi dalla punta del repository pubblico insieme al runtime ASR; questa descrizione resta soltanto contesto storico.
 
 | Modello | Segnale | Output osservato | Tempo osservato |
 | --- | --- | --- | --- |

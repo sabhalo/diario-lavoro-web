@@ -1,5 +1,7 @@
 # Resoconto prova preflight di cattura su Mac
 
+> **Template storico dello spike separato.** Non usarlo per la build pubblica corrente: l'avvio e le verifiche aperte sono nel [README](../../README.md) e nel [ticket 08](../../.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md).
+
 Stato: **non eseguito** (template predisposto il 2026-09-21). Questo file non è un risultato sul Mac aziendale e non cambia lo stato del ticket 05.
 
 Usare [la pagina di spike](../../spikes/capture-preflight/README.md) solo dopo aver verificato che la prova sintetica sia consentita. Non includere audio, video, screenshot, URL interni o l'elenco completo delle policy.

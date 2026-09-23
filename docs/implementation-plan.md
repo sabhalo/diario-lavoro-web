@@ -1,6 +1,6 @@
 # Diario di lavoro — piano di implementazione candidato
 
-Stato: **approvato per lo sviluppo il 2026-09-22; build implementata, validazione Mac e gate aziendale ancora aperti**. Il gate di [approvazione della mappa Wayfinder](../.scratch/diario-di-lavoro/map.md) è stato superato; la fase 1 ha avuto esito preliminare positivo riferito dall'utente e AC7 è positivo **solo secondo testimonianza utente**. Il profilo ASR effettivo, metriche e benchmark non sono stati riferiti. Base: [specifica](spec.md), [glossario](../CONTEXT.md), ticket 01–07 e ricerche. La sequenza sotto conserva il piano originale; gli esiti effettivi sono nella [matrice AC](verification/acceptance-matrix-2026-09-22.md) e nel [registro di sviluppo](verification/development-build-2026-09-22.md).
+Stato: **piano storico candidato del 2026-09-22, non istruzione di esecuzione della build corrente**. Il [ticket 08](../.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md) ha sostituito il perimetro ASR: la build pubblicata registra solo video/audio e non contiene modelli, diagnosi o flussi di trascrizione. La sequenza sotto conserva decisioni e prove della variante precedente; non usare le sezioni ASR, le metriche o gli artefatti datati per avviare o valutare la build corrente. Per l'avvio Mac usare [MAC-TRANSFER.md](MAC-TRANSFER.md); le prove reali Mac/Windows restano aperte.
 
 ## Sequenza, dipendenze e artefatti
 

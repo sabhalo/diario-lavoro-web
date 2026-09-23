@@ -1,6 +1,6 @@
 export const DB_NAME = "diario-di-lavoro";
-export const DB_VERSION = 1;
-export const CHUNK_MS = 10_000;
+export const DB_VERSION = 2;
+export const CHUNK_MS = 30_000;
 
 export const id = (prefix) => `${prefix}_${crypto.randomUUID()}`;
 export const isoNow = () => new Date().toISOString();
@@ -44,7 +44,7 @@ export function gapFor(recording, session, cause, at = Date.now()) {
   };
 }
 
-export function gapAfterConfirmed(recording, chunks, cause, certainty = "misurata") {
+export function gapAfterSaved(recording, chunks, cause, certainty = "misurata") {
   const endMs = recording?.offsetEndMs;
   const startMs = exportableChunks(chunks).reduce((latest, chunk) => Math.max(latest, chunk.endMs), recording?.offsetStartMs ?? 0);
   if (!Number.isFinite(endMs) || endMs <= startMs) return null;
@@ -57,64 +57,75 @@ export function storageAdmission({ usage = 0, quota = 0 } = {}, nextBytes = 0, t
   return { allowed: projected <= quota * threshold, known: true, usage: Math.max(0, usage), quota, projected, threshold };
 }
 
-export async function persistThenSettle(write, settle) {
-  try { await write(); return null; }
-  catch (error) { return error; }
-  finally { settle(); }
-}
-
 export function safeFileName(value) {
   return (value || "sessione").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70) || "sessione";
 }
 
-export function transcriptText(segments) {
-  return [...segments].sort((a, b) => a.startMs - b.startMs)
-    .map((s) => {
-      const provenance = [s.source, s.engine, s.version ? `v${s.version}` : null].filter(Boolean).join("; ");
-      return `[${formatTime(s.startMs)}]${provenance ? ` [${provenance}]` : ""} ${s.text}`;
-    }).join("\n");
-}
-
 export function exportableChunks(chunks) {
-  return chunks.filter((chunk) => chunk.status === "confermato").sort((a, b) => a.startMs - b.startMs);
+  return chunks.filter(hasStoredBlob).sort(compareChunks);
 }
 
-export function supersededAsrSegments(segments, source) {
-  return segments.filter((segment) => segment.source === "asr-locale" && segment.asrSource === source && segment.active !== false);
+export function hasStoredBlob(chunk) {
+  return chunk?.stored === true ? Number.isFinite(chunk.bytes) && chunk.bytes > 0 : Number.isFinite(chunk?.blob?.size) && chunk.blob.size > 0;
 }
 
-export function supersededAsrSegmentsForBlocks(segments, source, blockIds) {
-  return supersededAsrSegments(segments, source).filter((segment) => blockIds.has(segment.blockId));
+function compareChunks(a, b) {
+  const byStart = (a.startMs ?? 0) - (b.startMs ?? 0);
+  return byStart || (a.index ?? 0) - (b.index ?? 0) || String(a.id).localeCompare(String(b.id));
+}
+
+export function exportMediaGroups(chunks) {
+  const byRecorderAndStream = new Map();
+  for (const chunk of exportableChunks(chunks)) {
+    const key = `${chunk.recordingId}\u0000${chunk.stream}`;
+    const group = byRecorderAndStream.get(key) || [];
+    group.push(chunk);
+    byRecorderAndStream.set(key, group);
+  }
+  return [...byRecorderAndStream.values()].map((allChunks) => {
+    const ordered = [...allChunks].sort((a, b) => (a.index ?? 0) - (b.index ?? 0) || compareChunks(a, b));
+    const first = ordered[0];
+    const startsWithHeader = Number.isInteger(first?.index) && first.index === 0;
+    const chunksForFile = [];
+    let expectedIndex = 0;
+    if (startsWithHeader) {
+      for (const chunk of ordered) {
+        const sameFormat = chunk.format === first.format;
+        if (!sameFormat || !Number.isInteger(chunk.index) || chunk.index !== expectedIndex) break;
+        chunksForFile.push(chunk);
+        expectedIndex += 1;
+      }
+    }
+    const skippedChunks = ordered.slice(chunksForFile.length);
+    const blob = chunksForFile.length ? new Blob(chunksForFile.map((chunk) => chunk.blob), { type: first.format || "application/octet-stream" }) : null;
+    return {
+      recordingId: first.recordingId, stream: first.stream, format: first.format, file: mediaFileName({ ...first, index: null }),
+      chunks: chunksForFile, skippedChunks, allChunks: ordered, blob,
+      startsWithHeader, continuous: skippedChunks.length === 0,
+    };
+  }).sort((a, b) => String(a.recordingId).localeCompare(String(b.recordingId)) || String(a.stream).localeCompare(String(b.stream)));
 }
 
 export function captureIsLive({ displaySurface, displayTracks = [], microphoneTracks = [], systemTest, microphoneTest }) {
   return displaySurface === "monitor" && displayTracks.length > 1 && microphoneTracks.length > 0 && displayTracks.every((track) => track === "live") && microphoneTracks.every((track) => track === "live") && systemTest?.passed === true && microphoneTest?.passed === true;
 }
 
-export function captureMode({ displaySurface, displayTracks = [], microphoneTracks = [] }) {
-  return displaySurface === "monitor" && displayTracks.length > 1 && microphoneTracks.length > 0 && displayTracks.every((track) => track === "live") && microphoneTracks.every((track) => track === "live") ? "completa" : "ridotta";
-}
-
-export function canTranscribe({ pipelineReady, preparedModel, selectedModel }) { return pipelineReady === true && !!preparedModel && preparedModel === selectedModel; }
-
 export function formatTime(ms = 0) {
   const seconds = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(seconds / 3600)).padStart(2, "0")}:${String(Math.floor(seconds % 3600 / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-export function searchDocuments(query, { sessions = [], notes = [], events = [], transcripts = [] }, { includeOriginal = false } = {}) {
+export function searchDocuments(query, { sessions = [], notes = [], events = [] }) {
   const needle = query.trim().toLocaleLowerCase();
   if (!needle) return [];
   const hits = [];
   for (const session of sessions) {
     if ((session.title || "").toLocaleLowerCase().includes(needle)) hits.push({ sessionId: session.id, documentId: session.id, kind: "titolo", text: session.title, textStatus: "corrente" });
   }
-  const visibleTranscripts = includeOriginal ? transcripts : transcripts.filter((item) => item.active !== false);
-  for (const doc of [...notes, ...events, ...visibleTranscripts]) {
+  for (const doc of [...notes, ...events]) {
     if ((doc.text || "").toLocaleLowerCase().includes(needle)) {
-      const transcript = !!doc.source;
-      hits.push({ sessionId: doc.sessionId, documentId: doc.id, recordingId: doc.recordingId, offsetMs: doc.startMs, kind: doc.kind || (transcript ? "trascrizione" : "nota"), text: doc.text, textStatus: transcript ? (doc.active === false ? "originale/versione conservata" : "versione attiva") : "corrente", provenance: transcript ? { source: doc.source, engine: doc.engine, version: doc.version } : null });
+      hits.push({ sessionId: doc.sessionId, documentId: doc.id, recordingId: doc.recordingId, offsetMs: doc.startMs, kind: doc.kind || "nota", text: doc.text, textStatus: "corrente" });
     }
   }
   return hits;
@@ -126,7 +137,8 @@ export function mediaExtension(mime = "") {
 }
 
 export function mediaFileName(chunk) {
-  return `media/${chunk.recordingId.slice(-8)}-${chunk.stream}-${chunk.index}.${mediaExtension(chunk.format)}`;
+  const index = Number.isInteger(chunk.index) ? `-${chunk.index}` : "";
+  return `media/${chunk.recordingId.slice(-8)}-${chunk.stream}${index}.${mediaExtension(chunk.format)}`;
 }
 
 export function overlapsScope(item, startMs = -Infinity, endMs = Infinity) {
@@ -142,24 +154,26 @@ export function recordingExportScope(recording, currentOffsetMs) {
   return { startMs: recording.offsetStartMs, endMs: closed ? recording.offsetEndMs : Math.max(recording.offsetStartMs, currentOffsetMs), endDerivedAtExport: !closed };
 }
 
-export function exportTranscript(segment, chunksById) {
-  const sourceChunk = segment.blockId ? chunksById.get(segment.blockId) : null;
-  return { ...segment, sourceMediaStatus: sourceChunk ? sourceChunk.status === "confermato" ? "verificabile" : "sorgente non verificabile" : segment.blockId ? "sorgente non trovata" : "nessun blocco sorgente dichiarato" };
+export function continuousBlockInterval({ recordingStartMs, previousEndMs, timecodeMs, observedAtMs }) {
+  const startMs = Number.isFinite(previousEndMs) ? previousEndMs : recordingStartMs;
+  const observedEndMs = Number.isFinite(timecodeMs) ? recordingStartMs + Math.max(0, timecodeMs) : observedAtMs;
+  return { startMs, endMs: Math.max(startMs, observedEndMs) };
 }
 
 export class DiaryStore {
-  constructor(name = DB_NAME, version = DB_VERSION) { this.name = name; this.version = version; this.db = null; }
+  constructor() { this.db = null; }
   async open() {
     this.db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.name, this.version);
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => {
         const db = request.result;
-        for (const name of ["sessions", "recordings", "chunks", "notes", "events", "gaps", "transcripts", "settings"]) {
+        for (const name of ["sessions", "recordings", "chunks", "notes", "events", "gaps", "settings"]) {
           if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: "id" });
         }
-        for (const [name, field] of [["recordings", "sessionId"], ["chunks", "recordingId"], ["notes", "sessionId"], ["events", "sessionId"], ["gaps", "sessionId"], ["transcripts", "sessionId"]]) {
+        if (db.objectStoreNames.contains("transcripts")) db.deleteObjectStore("transcripts");
+        for (const [name, field] of [["recordings", "sessionId"], ["chunks", "recordingId"], ["notes", "sessionId"], ["events", "sessionId"], ["gaps", "sessionId"]]) {
           const store = request.transaction.objectStore(name);
-          store.createIndex(`${field}Index`, field, { unique: false });
+          if (!store.indexNames.contains(`${field}Index`)) store.createIndex(`${field}Index`, field, { unique: false });
         }
       };
       request.onsuccess = () => resolve(request.result);
@@ -177,16 +191,20 @@ export class DiaryStore {
     const recordings = await this.bySession("recordings", sessionId);
     const chunks = (await Promise.all(recordings.map((r) => this.byRecording("chunks", r.id)))).flat();
     const related = {};
-    for (const store of ["notes", "events", "gaps", "transcripts"]) related[store] = await this.bySession(store, sessionId);
-    const tx = this.transaction(["sessions", "recordings", "chunks", "notes", "events", "gaps", "transcripts"], "readwrite");
+    for (const store of ["notes", "events", "gaps"]) related[store] = await this.bySession(store, sessionId);
+    const tx = this.transaction(["sessions", "recordings", "chunks", "notes", "events", "gaps"], "readwrite");
     tx.objectStore("sessions").delete(sessionId);
-    for (const store of ["recordings", "notes", "events", "gaps", "transcripts"]) {
+    for (const store of ["recordings", "notes", "events", "gaps"]) {
       const items = store === "recordings" ? recordings : related[store];
       for (const item of items) tx.objectStore(store).delete(item.id);
     }
     for (const chunk of chunks) tx.objectStore("chunks").delete(chunk.id);
     await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new DOMException("Rimozione annullata", "AbortError")); });
     return { recordings: recordings.length, chunks: chunks.length };
+  }
+  async erase() {
+    this.db?.close();
+    await new Promise((resolve, reject) => { const request = indexedDB.deleteDatabase(DB_NAME); request.onsuccess = resolve; request.onerror = () => reject(request.error); request.onblocked = () => reject(new DOMException("Chiudere le altre schede dell'app prima di completare la migrazione", "InvalidStateError")); });
   }
   async byRecording(store, recordingId) { return new Promise((resolve, reject) => { const tx = this.transaction([store]); const index = tx.objectStore(store).index("recordingIdIndex"); const r = index.getAll(recordingId); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); }); }
 }
