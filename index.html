@@ -12,7 +12,7 @@
     <header class="topbar">
       <a class="brand" href="#home" aria-label="Diario di lavoro, home">Diario <span>di lavoro</span></a>
       <p id="storage-status" class="muted">Archivio locale: inizializzazione…</p>
-      <button class="secondary" id="new-session">Nuova sessione</button>
+      <button class="secondary" id="new-session" data-action="new-session">Nuova sessione</button>
     </header>
     <main class="layout">
       <aside class="sidebar" aria-label="Navigazione">
@@ -20,12 +20,12 @@
         <button class="nav" data-view="capture">Cattura</button>
         <button class="nav" data-view="search">Ricerca</button>
         <button class="nav" data-view="verification">Verifica</button>
-        <p class="local-note">I contenuti restano in questo browser. Nessun upload o account.</p>
+        <p class="local-note">I contenuti restano nella cartella locale scelta. Nessun upload o account.</p>
       </aside>
       <section id="view" class="content" aria-live="polite"></section>
     </main>
     <dialog id="dialog"></dialog>
     <template id="empty-template"><div class="empty"><h2>Nessuna sessione</h2><p>Crea una sessione per aggiungere note, eventi o iniziare una cattura consapevole.</p><button data-action="new-session">Crea sessione</button></div></template>
-    <script type="module" src="src/app.js?v=15"></script>
+    <script type="module" src="src/app.js?v=16"></script>
   </body>
 </html>

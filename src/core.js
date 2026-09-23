@@ -67,7 +67,7 @@ export function exportableChunks(chunks) {
 }
 
 export function hasStoredBlob(chunk) {
-  return Number.isFinite(chunk?.blob?.size) && chunk.blob.size > 0;
+  return chunk?.stored === true ? Number.isFinite(chunk.bytes) && chunk.bytes > 0 : Number.isFinite(chunk?.blob?.size) && chunk.blob.size > 0;
 }
 
 function compareChunks(a, b) {
@@ -201,6 +201,10 @@ export class DiaryStore {
     for (const chunk of chunks) tx.objectStore("chunks").delete(chunk.id);
     await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new DOMException("Rimozione annullata", "AbortError")); });
     return { recordings: recordings.length, chunks: chunks.length };
+  }
+  async erase() {
+    this.db?.close();
+    await new Promise((resolve, reject) => { const request = indexedDB.deleteDatabase(DB_NAME); request.onsuccess = resolve; request.onerror = () => reject(request.error); request.onblocked = () => reject(new DOMException("Chiudere le altre schede dell'app prima di completare la migrazione", "InvalidStateError")); });
   }
   async byRecording(store, recordingId) { return new Promise((resolve, reject) => { const tx = this.transaction([store]); const index = tx.objectStore(store).index("recordingIdIndex"); const r = index.getAll(recordingId); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); }); }
 }

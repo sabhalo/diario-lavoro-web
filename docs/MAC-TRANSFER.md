@@ -1,6 +1,6 @@
 # Avvio locale sul Mac
 
-Questa è una web app statica, non un'applicazione macOS eseguibile. Non richiede driver, helper o privilegi amministrativi; richiede però che Git, Python 3 e Chrome siano già consentiti dall'ambiente.
+Questa è una web app statica, non un'applicazione macOS eseguibile. Non richiede driver, helper o privilegi amministrativi; richiede però che Git, Python 3 e Chrome siano già consentiti dall'ambiente. Al primo avvio Chrome richiede una cartella locale con lettura/scrittura: senza tale scelta l'app resta intenzionalmente bloccata.
 
 ## Dal repository pubblicato
 
@@ -17,7 +17,7 @@ Aprire `http://127.0.0.1:4173/` in Chrome. Per una copia già clonata: entrare n
 
 ## Esportare dati già nel profilo Chrome
 
-Dopo l'aggiornamento, aprire la sessione esistente e usare **Esporta tratto** o **Esporta**. I Blob già in IndexedDB non vengono eliminati: anche i vecchi blocchi etichettati `non verificabile` sono esportati quando il Blob esiste. Lo ZIP ricompone i frammenti consecutivi dello stesso recorder/flusso in un file media; non dichiara apribili i frammenti successivi come file indipendenti. Aprire `manifest.json` se un file media manca: indica onestamente l'assenza dell'header iniziale o una discontinuità. Estrarre e riaprire i file media generati prima di considerare la registrazione verificata.
+Dopo l'aggiornamento scegliere prima una cartella dedicata. Se compare **Migra dati browser**, usarlo: copia Blob e metadati legacy nella cartella, riapre ogni file per verificarlo ed elimina IndexedDB soltanto dopo esito completo; se interrotto, ripetere il comando senza cancellare l'origine. Poi usare **Esporta tratto** o **Esporta**. Lo ZIP ricompone i frammenti consecutivi dello stesso recorder/flusso in un file media; non dichiara apribili i frammenti successivi come file indipendenti. Aprire `manifest.json` se un file media manca: indica onestamente l'assenza dell'header iniziale o una discontinuità. Estrarre e riaprire i file media generati prima di considerare la registrazione verificata.
 
 ## Prima prova sicura
 
