@@ -4,13 +4,13 @@ Web app locale, senza backend, account, analytics o upload automatici, per ricor
 
 ## Avvio locale
 
-Serve una origine sicura: `localhost` in sviluppo oppure HTTPS. Su macOS, con `python3` già presente:
+Serve una origine sicura: `localhost` in sviluppo oppure HTTPS. Con Docker Desktop o Docker Engine e Compose:
 
 ```bash
-python3 -m http.server 4173 --bind 127.0.0.1
+docker compose up --build
 ```
 
-Aprire poi `http://127.0.0.1:4173/` nel browser. Eseguire i test puri del dominio con `npm test` (Node 20+).
+Aprire poi `http://localhost:4173/` nel browser. Il servizio ascolta solo sull'interfaccia locale del computer; fermarlo con `Ctrl+C` (oppure `docker compose down` se avviato in background). I dati rimangono in IndexedDB nel profilo del browser: usare lo stesso indirizzo e profilo per ritrovare le sessioni. Il container serve solo file statici e non conserva i dati delle sessioni. Eseguire i test puri del dominio con `npm test` (Node 20+).
 
 ## Cosa fa
 
