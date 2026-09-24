@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 const wav = await readFile("test/fixtures/italiano-cc0-4000000037-16k.wav");
 const samples = Array.from({ length: (wav.length - 44) / 2 }, (_, i) => wav.readInt16LE(44 + i * 2) / 32768);
 
-const browser = await chromium.launch({ channel: "chrome", headless: true, args: ["--enable-unsafe-webgpu"] });
+const browser = await chromium.launch({ channel: "chrome", headless: true, args: ["--enable-unsafe-webgpu", "--unlimited-storage"] });
 try {
   const page = await browser.newPage();
   page.on("console", (message) => { if (message.type() === "warning" || message.type() === "error") console.error(`browser: ${message.text()}`); });
@@ -21,7 +21,9 @@ try {
     const transcript = await pipe(Float32Array.from(input), { language: "italian", task: "transcribe", return_timestamps: true });
     return { model, adapter: adapter?.info || null, loadedSeconds, inferenceSeconds: (performance.now() - inferStarted) / 1000, transcript };
   }, samples);
-  const online = await transcribe();
+  let online;
+  try { online = await transcribe(); }
+  catch (error) { console.error(JSON.stringify({ error: String(error), storage: await page.evaluate(() => navigator.storage.estimate()) })); throw error; }
   const cache = await page.evaluate(async () => ({ storage: await navigator.storage.estimate(), modelFiles: await (async () => { const root = await navigator.storage.getDirectory(); const models = await root.getDirectoryHandle("modelli"); const model = await models.getDirectoryHandle("whisper-large-v3-turbo-q4f16"); return Array.fromAsync(model.keys()); })() }));
   await page.reload();
   await page.route("**/*", (route) => ["127.0.0.1", "localhost"].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
