@@ -59,3 +59,26 @@ test("failed fragment write does not create saved chunk metadata", async () => {
   await assert.rejects(archive.writeFragment(chunk, chunk.blob), /Quota/);
   assert.equal(await archive.get("chunks", "c1"), undefined);
 });
+
+test("transcript run and segments survive reopen and session deletion removes them", async () => {
+  const directory = new MemoryDirectoryAdapter(), archive = await FileArchive.open(directory);
+  await archive.put("sessions", session);
+  await archive.put("transcriptRuns", { id: "run1", sessionId: "s1", recordingId: "r1", source: "microfono", status: "completa", mediaChunkIds: [] });
+  await archive.put("transcriptSegments", { id: "seg1", runId: "run1", sessionId: "s1", recordingId: "r1", source: "microfono", text: "ciao" });
+  const reopened = await FileArchive.open(directory);
+  assert.equal((await reopened.bySession("transcriptSegments", "s1"))[0].text, "ciao");
+  await reopened.deleteSession("s1");
+  assert.deepEqual(await reopened.all("transcriptRuns"), []);
+  assert.deepEqual(await reopened.all("transcriptSegments"), []);
+});
+
+test("interrupted transcription is marked partial with confirmed segments preserved", async () => {
+  const directory = new MemoryDirectoryAdapter(), archive = await FileArchive.open(directory);
+  await archive.put("transcriptRuns", { id: "run2", sessionId: "s1", recordingId: "r1", status: "in elaborazione", mediaChunkIds: [] });
+  await archive.put("transcriptSegments", { id: "seg2", runId: "run2", sessionId: "s1", text: "testo confermato" });
+  const reopened = await FileArchive.open(directory);
+  assert.equal((await reopened.get("transcriptRuns", "run2")).status, "parziale");
+  assert.equal((await reopened.get("transcriptSegments", "seg2")).text, "testo confermato");
+  await reopened.deleteTranscriptRun("run2");
+  assert.equal(await reopened.get("transcriptSegments", "seg2"), undefined);
+});

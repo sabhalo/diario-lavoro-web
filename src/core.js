@@ -116,7 +116,7 @@ export function formatTime(ms = 0) {
   return `${String(Math.floor(seconds / 3600)).padStart(2, "0")}:${String(Math.floor(seconds % 3600 / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-export function searchDocuments(query, { sessions = [], notes = [], events = [] }) {
+export function searchDocuments(query, { sessions = [], notes = [], events = [], transcriptSegments = [], transcriptRuns = [] }) {
   const needle = query.trim().toLocaleLowerCase();
   if (!needle) return [];
   const hits = [];
@@ -127,6 +127,13 @@ export function searchDocuments(query, { sessions = [], notes = [], events = [] 
     if ((doc.text || "").toLocaleLowerCase().includes(needle)) {
       hits.push({ sessionId: doc.sessionId, documentId: doc.id, recordingId: doc.recordingId, offsetMs: doc.startMs, kind: doc.kind || "nota", text: doc.text, textStatus: "corrente" });
     }
+  }
+  const byRun = new Map(transcriptRuns.map((run) => [run.id, run]));
+  for (const segment of transcriptSegments) {
+    if (!(segment.text || "").toLocaleLowerCase().includes(needle)) continue;
+    const run = byRun.get(segment.runId);
+    if (!run) continue;
+    hits.push({ sessionId: segment.sessionId, documentId: segment.id, recordingId: segment.recordingId, offsetMs: segment.timed ? segment.startMs : null, kind: segment.source === "microfono" ? "trascrizione microfono" : "trascrizione audio del computer", text: segment.text, textStatus: `versione ${run.version} · ${run.status}${run.active ? " · attiva" : ""}`, source: segment.source, runId: run.id });
   }
   return hits;
 }

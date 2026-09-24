@@ -1,6 +1,6 @@
 # Trascrizione locale a due percorsi — specifica e piano candidati
 
-Stato: **piano pronto per revisione, non implementato**. Questa evolutiva parte dalla build media-only; [mappa](map.md) e [ticket](issues/) conservano domande, prove e dipendenze. La specifica storica in `docs/spec.md` non descrive la build corrente per ASR. L'utente ha scelto un **motore ASR locale dedicato** per il percorso server; [LM Studio diretto](issues/07-verificare-lm-studio-diretto.md) è stato investigato ed escluso da questa evolutiva.
+Stato: **implementazione completa approvata dall'utente il 2026-09-24; esecuzione e verifiche in corso, nessun esito target-device presunto**. Questa evolutiva parte dalla build media-only; [mappa](map.md) e [ticket](issues/) conservano domande, prove e dipendenze. La specifica storica in `docs/spec.md` non descrive la build corrente per ASR. L'utente ha scelto un **motore ASR locale dedicato** per il percorso server; [LM Studio diretto](issues/07-verificare-lm-studio-diretto.md) è stato investigato ed escluso da questa evolutiva.
 
 ## Contratto di prodotto
 

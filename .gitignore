@@ -1,2 +1,4 @@
 /diario-lavoro-web-mac-*.zip
 /spikes/*.zip
+/node_modules/
+__pycache__/
