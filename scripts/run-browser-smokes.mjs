@@ -18,7 +18,9 @@ try {
     }
     if (!ready) throw new Error("Server statico non pronto su 127.0.0.1:4173.");
   }
-  const checks = process.argv.includes("--maximum") ? [["benchmark-browser-maximum.mjs"]] : [["smoke-app-ui.mjs"], ["smoke-asr-browser.mjs", "--slow"], ["smoke-archive-export.mjs"]];
+  const checks = process.argv.includes("--maximum") ? [["benchmark-browser-maximum.mjs"]]
+    : process.argv.includes("--browser-model") ? [["smoke-asr-browser.mjs", "--browser-model", ...(process.argv.includes("--balanced") ? ["--balanced"] : [])]]
+    : [["smoke-app-ui.mjs"], ["smoke-asr-browser.mjs", "--slow"], ["smoke-archive-export.mjs"]];
   for (const [script, ...args] of checks) {
     const code = await new Promise((resolve, reject) => { const child = spawn(process.execPath, [`scripts/${script}`, ...args], { stdio: "inherit", windowsHide: true }); child.on("error", reject); child.on("exit", (exitCode) => resolve(exitCode)); });
     if (code !== 0) throw new Error(`${script} fallito con codice ${code}.`);

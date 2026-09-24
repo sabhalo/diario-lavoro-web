@@ -48,3 +48,25 @@ jobs:
       - run: npm run build:browser-asr
       - run: df -h /
       - run: npm run smoke:maximum
+
+  browser-tier-candidates:
+    if: github.ref == 'refs/heads/feature/local-transcription-planning'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+        tier: [rapido, bilanciato]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run build:browser-asr
+      - run: node scripts/run-browser-smokes.mjs --browser-model ${{ matrix.tier == 'bilanciato' && '--balanced' || '' }}
