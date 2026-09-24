@@ -31,14 +31,14 @@ Compilare una riga per ogni livello browser e per il motore locale su **entrambi
 | macOS | Browser rapido · Whisper base q8/WASM | Clip CC0 0037 | Smoke online e riapertura offline pass sul runner Apple Silicon | Testo italiano corrispondente al riferimento; benchmark rappresentativo aperto | Non misurata in modo ripetibile | Timestamp restituiti; precisione non valutata | Chrome headless, CI `35944001182`; Mac di destinazione aperto |
 | macOS | Browser bilanciato · Whisper small q8/WASM | Clip CC0 0037 | Smoke online e riapertura offline pass sul runner Apple Silicon | Testo italiano corrispondente al riferimento; benchmark rappresentativo aperto | Non misurata in modo ripetibile | Timestamp restituiti; precisione non valutata | Chrome headless, CI `35944001182`; Mac di destinazione aperto |
 | macOS | Browser qualità massima · large-v3-turbo q4f16/WebGPU | Clip CC0 0037 | Smoke online e riapertura offline pass sul runner con quota browser ampliata | Testo corrispondente al riferimento; qualità rappresentativa aperta | Con cartella OPFS di prova: caricamento 53,81 s iniziale e 32,62 s offline, inferenza 8,39–11,45 s | Timestamp restituiti; precisione non valutata | CI `35942551191`; OPFS senza quota ampliata fallisce, cartella scelta dall'utente e Chrome normale non verificati |
-| macOS | Motore locale | Da compilare | Non eseguito | | | | |
+| macOS | Motore locale · whisper.cpp v1.9.2, large-v3-turbo-q5_0, Metal | Clip CC0 0037 | Smoke API reale pass sul runner Apple Silicon | Testo corrispondente al riferimento; qualità rappresentativa aperta | POST 40,30 s per 2,64 s di audio sul runner | Un segmento entro la durata; precisione non valutata | CI `35945139014`, modello SHA-1 verificato; Mac di destinazione e UI→helper Mac aperti |
 
 ## Prove di comportamento
 
 | Verifica | Windows | macOS | Evidenza da conservare |
 | --- | --- | --- | --- |
 | Nessuna trascrizione o richiesta HTTP prima del clic | Smoke UI pass | Smoke UI CI pass | Traccia di rete e stato UI |
-| URL completo, preflight, CORS e rifiuto di host/redirect non loopback | Test unitari e smoke preflight pass; UI errori aperta | Non eseguito | URL, risposta e messaggio UI |
+| URL completo, preflight, CORS e rifiuto di host/redirect non loopback | Test unitari e smoke preflight pass; UI errori aperta | Test Python e GET/POST loopback CI pass; UI errori aperta | URL, risposta e messaggio UI |
 | Payload al servizio contiene solo WAV audio, mai frame video | Test contratto pass; smoke video e POST separati, combinazione E2E video→helper aperta | Smoke UI su video sintetico pass; helper reale non eseguito | Tipo, dimensione e intestazione del file ricevuto |
 | Microfono e audio computer restano due sorgenti in una vista cronologica | Smoke UI helper pass con due run/POST, test vista/export pass | Non eseguito | Segmenti con etichette e tempi, inclusa sovrapposizione |
 | Media solo audio e video con audio, brevi e lunghi | Smoke Chrome breve entrambi formati pass; lungo aperto | Smoke Chrome CI breve entrambi formati pass; lungo aperto | ID registrazione, frammenti, intervalli |
