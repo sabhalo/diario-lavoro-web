@@ -80,6 +80,7 @@ async function renderHome() {
 async function selectedSession() { return state.selectedId ? state.store.get("sessions", state.selectedId) : null; }
 async function renderCapture() {
   const session = await selectedSession();
+  if (state.view !== "capture") return;
   if (!session) { view.innerHTML = `<div class="empty"><h2>Scegli una sessione</h2><p>La cattura appartiene sempre a una sessione nominabile.</p><button data-action="new-session">Crea sessione</button></div>`; return; }
   const recordings = await state.store.bySession("recordings", session.id), gaps = await state.store.bySession("gaps", session.id), notes = await state.store.bySession("notes", session.id), events = await state.store.bySession("events", session.id), runs = await state.store.bySession("transcriptRuns", session.id), segments = await state.store.bySession("transcriptSegments", session.id);
   const allChunks = (await state.store.all("chunks")).filter((chunk) => chunk.sessionId === session.id).sort((a, b) => a.startMs - b.startMs);
@@ -90,6 +91,7 @@ async function renderCapture() {
   const activeSegments = segments.filter((segment) => runs.some((run) => run.id === segment.runId && run.active));
   const items = [...recordings.map((r) => ({ type: "Registrazione", at: r.offsetStartMs, text: `${r.mode} · ${r.status}${r.cause ? ` (${r.cause})` : ""}`, gap: r.status === "interrotta" })), ...gaps.map((g) => ({ type: "Lacuna", at: g.startMs, text: g.cause, gap: true })), ...events.map((e) => ({ type: "Evento", at: e.startMs ?? 0, text: e.text })), ...notes.map((n) => ({ type: "Nota", at: n.startMs ?? 0, text: n.text })), ...activeSegments.map((s) => ({ type: s.source === "microfono" ? "Microfono" : "Audio del computer", at: s.startMs ?? recordings.find((r) => r.id === s.recordingId)?.offsetStartMs ?? 0, text: s.text, transcription: true, segmentId: s.id, untimed: !s.timed }))].sort((a, b) => a.at - b.at);
   const chunkRows = allChunks.map((chunk) => { const saved = hasStoredBlob(chunk), focus = state.jumpOffset != null && chunk.startMs <= state.jumpOffset && chunk.endMs >= state.jumpOffset; return `<div class="split ${focus ? "focus" : ""}"><div><span class="status ${saved ? "ok" : "fail"}">${saved ? "salvato" : "media mancante"}</span> <strong>${esc(chunk.stream)}</strong> <span class="small muted">${formatTime(chunk.startMs)}–${formatTime(chunk.endMs)} · ${(chunk.bytes / 1024 / 1024).toFixed(2)} MB</span></div><button class="secondary compact" data-action="play-block" data-id="${chunk.id}" ${saved ? "" : "disabled"}>Apri flusso</button></div>`; }).join("");
+  if (state.view !== "capture" || state.selectedId !== session.id) return;
   view.innerHTML = `<header><div><h1>${esc(session.title)}</h1><p class="muted">${esc(session.state)} · inizio ${localDate(session.startedAt)}</p></div><div class="actions"><button class="secondary compact" data-action="rename-session">Rinomina</button><button class="secondary compact" data-action="export-session">Esporta</button><button class="secondary compact" data-action="delete-session">Rimuovi</button></div></header>
   ${session.attestation ? `<div class="callout">Attestazione resa il ${localDate(session.attestation.at)}. Non certifica policy o consenso di altre persone.</div>` : `<div class="callout warn"><strong>Attestazione richiesta.</strong> Prima di una cattura, dichiara di aver verificato gli obblighi applicabili.</div>`}
   <div class="grid"><section class="card"><h2>Preflight dei flussi</h2><p class="muted">Scegli il monitor e l’audio del computer in Chrome; il microfono è richiesto separatamente.</p>
@@ -127,6 +129,10 @@ async function renderVerification() {
 }
 
 function onChange(event) {
+  if ((event.target.id === "asr-path" || event.target.id === "asr-tier") && (state.asr.loading || state.asr.job)) {
+    event.target.value = event.target.id === "asr-path" ? state.asr.path : state.asr.tier;
+    return showNotice("Attendi la fine del download o della trascrizione prima di cambiare percorso o livello.", "warn");
+  }
   if (event.target.id === "asr-path") { state.asr.path = event.target.value; renderCapture(); }
   if (event.target.id === "asr-tier") { state.asr.tier = event.target.value; renderCapture(); }
   if (event.target.id === "asr-url") state.asr.url = event.target.value.trim();
@@ -253,14 +259,15 @@ async function failCapture(cause) { if (state.recording) await stopCapture("inte
 async function concludeSession() { const session = await selectedSession(); if (state.recording) await stopCapture("terminata", "sessione conclusa"); const latest = await selectedSession(); latest.state = "conclusa"; latest.endedAt = isoNow(); latest.updatedAt = isoNow(); await state.store.put("sessions", latest); renderCapture(); }
 
 async function prepareBrowser() {
-  const tier = BROWSER_TIERS[state.asr.tier];
+  if (state.asr.loading || state.asr.job) return;
+  const tierKey = state.asr.tier, tier = BROWSER_TIERS[tierKey];
   if (tier.gated) return showNotice("Questo livello attende benchmark Mac e Windows.", "warn");
-  if (state.asr.pipelines.has(state.asr.tier)) return showNotice("Modello già pronto in questa sessione.");
+  if (state.asr.pipelines.has(tierKey)) return showNotice("Modello già pronto in questa sessione.");
   state.asr.loading = "Download e caricamento in corso…"; await renderCapture();
   try {
     const { loadWhisper } = await import("./browser-asr.bundle.js?v=1");
     const pipe = await loadWhisper(tier.model, { device: tier.device, dtype: tier.dtype, modelDirectory: state.rememberedDirectory, progress_callback: (progress) => { const done = Number(progress.progress); if (Number.isFinite(done)) { state.asr.loading = `Modello ${Math.round(done)}%`; const button = document.querySelector('[data-action="prepare-browser"]'); if (button) button.textContent = state.asr.loading; } } });
-    state.asr.pipelines.set(state.asr.tier, pipe);
+    state.asr.pipelines.set(tierKey, pipe);
     state.asr.loading = null; await renderCapture(); showNotice(`${tier.label} pronto. Avvia la trascrizione con un clic separato.`, "warn");
   } catch (error) { state.asr.loading = null; await renderCapture(); showNotice(`Modello non pronto: ${error.message}. Verifica rete, memoria e spazio; poi riprova.`, "danger"); }
 }
@@ -306,46 +313,57 @@ async function saveSegmentCorrection(segmentId, value) {
 
 async function startAsr(recordingIds = null) {
   if (state.asr.job) return;
+  const controller = new AbortController(), tierKey = state.asr.tier, path = state.asr.path;
+  state.asr.job = { controller, progress: "Controllo del motore" };
   if (byId("asr-url")) state.asr.url = byId("asr-url").value.trim();
-  const session = await selectedSession(); if (!session) return;
-  const recordings = (await state.store.bySession("recordings", session.id)).filter((recording) => recording.status !== "in-corso" && (!recordingIds || recordingIds.includes(recording.id)));
-  if (!recordings.length) return showNotice("Nessun tratto salvato e concluso da trascrivere.", "warn");
-  let local = null, pipe = null;
+  const url = state.asr.url;
+  let notice = null;
   try {
-    if (state.asr.path === "local") local = await preflightLocalAsr(state.asr.url);
-    else {
-      if (BROWSER_TIERS[state.asr.tier].gated) throw new Error("Livello non ancora validato sui sistemi target.");
-      pipe = state.asr.pipelines.get(state.asr.tier);
-      if (!pipe) throw new Error("Prepara il modello browser con il pulsante di download prima di trascrivere.");
-    }
-  } catch (error) { return showNotice(`ASR non avviata: ${error.message}`, "danger"); }
-  const controller = new AbortController(); state.asr.job = { controller, progress: "Preparazione audio" }; await renderCapture();
-  const execute = async () => {
-    for (const recording of recordings) {
-      if (controller.signal.aborted) break;
-      const chunks = await state.store.byRecording("chunks", recording.id);
-      for (const [stream, source] of [["microfono", "microfono"], ["systemAudio", "audio del computer"], ["display", "audio del computer"]]) {
-        const same = chunks.filter((chunk) => chunk.stream === stream);
-        if (!same.length || (source === "audio del computer" && recording.audioSources?.systemAudio === false) || (stream === "display" && chunks.some((chunk) => chunk.stream === "systemAudio"))) continue;
-        await transcribeSource(session, recording, source, same, local, pipe, controller.signal);
-        if (controller.signal.aborted) break;
+    if (state.view === "capture") await renderCapture();
+    const session = await selectedSession(); if (!session) return;
+    const recordings = (await state.store.bySession("recordings", session.id)).filter((recording) => recording.status !== "in-corso" && (!recordingIds || recordingIds.includes(recording.id)));
+    if (!recordings.length) { notice = ["Nessun tratto salvato e concluso da trascrivere.", "warn"]; return; }
+    let local = null, pipe = null;
+    try {
+      if (path === "local") local = await preflightLocalAsr(url);
+      else {
+        if (BROWSER_TIERS[tierKey].gated) throw new Error("Livello non ancora validato sui sistemi target.");
+        pipe = state.asr.pipelines.get(tierKey);
+        if (!pipe) throw new Error("Prepara il modello browser con il pulsante di download prima di trascrivere.");
       }
-    }
-  };
-  try {
+    } catch (error) { notice = [`ASR non avviata: ${error.message}`, "danger"]; return; }
+    if (controller.signal.aborted) return;
+    state.asr.job.progress = "Preparazione audio";
+    if (state.view === "capture") await renderCapture();
+    const execute = async () => {
+      for (const recording of recordings) {
+        if (controller.signal.aborted) break;
+        const chunks = await state.store.byRecording("chunks", recording.id);
+        for (const [stream, source] of [["microfono", "microfono"], ["systemAudio", "audio del computer"], ["display", "audio del computer"]]) {
+          const same = chunks.filter((chunk) => chunk.stream === stream);
+          if (!same.length || (source === "audio del computer" && recording.audioSources?.systemAudio === false) || (stream === "display" && chunks.some((chunk) => chunk.stream === "systemAudio"))) continue;
+          await transcribeSource(session, recording, source, same, local, pipe, controller.signal, tierKey);
+          if (controller.signal.aborted) break;
+        }
+      }
+    };
     if (navigator.locks?.request) await navigator.locks.request("diario-asr-jobs", execute);
     else await execute();
-  } finally { state.asr.job = null; await renderCapture(); }
+  } finally {
+    state.asr.job = null;
+    if (state.view === "capture") await renderCapture();
+    if (notice) showNotice(...notice);
+  }
 }
 
-async function transcribeSource(session, recording, source, chunks, local, pipe, signal) {
-  const path = local ? "motore locale" : "browser", tier = local ? null : state.asr.tier, model = local?.info.model || BROWSER_TIERS[tier].model;
+async function transcribeSource(session, recording, source, chunks, local, pipe, signal, tierKey) {
+  const path = local ? "motore locale" : "browser", tier = local ? null : tierKey, model = local?.info.model || BROWSER_TIERS[tier].model;
   const prior = (await state.store.byRecording("transcriptRuns", recording.id)).filter((run) => run.source === source);
   const run = { id: id("asr"), sessionId: session.id, recordingId: recording.id, source, path, tier, model, version: prior.length + 1, status: "in attesa", coverage: [], mediaChunkIds: [], active: false, error: null, createdAt: isoNow(), updatedAt: isoNow() };
   await state.store.put("transcriptRuns", run);
   try {
     const media = contiguousMedia(chunks); run.partialMedia = media.partial; run.mediaChunkIds = media.chunks.map((chunk) => chunk.id); run.status = "in elaborazione"; run.updatedAt = isoNow(); await state.store.put("transcriptRuns", run);
-    state.asr.job.progress = `${source}: ${formatTime(recording.offsetStartMs)}`; await renderCapture();
+    state.asr.job.progress = `${source}: ${formatTime(recording.offsetStartMs)}`; if (state.view === "capture") await renderCapture();
     let processedWindows = 0, hadAudioSignal = false;
     for await (const window of audioWindows(state.store, media, signal)) {
       if (signal.aborted) throw new DOMException("Trascrizione annullata", "AbortError");

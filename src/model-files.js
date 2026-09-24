@@ -17,8 +17,19 @@ export const LARGE_MODEL_ASSETS = Object.freeze({
   "onnx/encoder_model_q4f16.onnx": 369974078,
   "onnx/decoder_model_merged_q4f16.onnx": 193505017,
 });
-// SHA-256 values published by the pinned Hugging Face LFS objects.
+// SHA-256 of every asset at the pinned revision; ONNX values match the published LFS objects.
 export const LARGE_MODEL_SHA256 = Object.freeze({
+  "added_tokens.json": "3c51f66c4c21f9e126970078f11ae77a78c74aee8df606ee9daba86e467108e0",
+  "config.json": "35cd83669f75bc2867f3b3a4461850392d5e308cd6ea951c3700539883c28df1",
+  "generation_config.json": "16f95291d2f47c944d3c2b19390bba7965666555c1ea2a0bdc850d1fab45612f",
+  "merges.txt": "2df2990a395e35e8dfbc7511e08c12d56018d8d04691e0133e5d63b21e154dc6",
+  "normalizer.json": "bf1c507dc8724ca9cf9903640dacfb69dae2f00edee4f21ceba106a7392f26dd",
+  "preprocessor_config.json": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711",
+  "quantize_config.json": "8da6e4e50ef7c210ba66a98a4256e6d60e38cef8a9a9c74d327251aaf4e78767",
+  "special_tokens_map.json": "baea4ea09372eb4fca86b4e4346139fd73cb807d5087e9de0948e971739c3e74",
+  "tokenizer.json": "6d8cbd7cd0d8d5815e478dac67b85a26bbe77c1f5e0c6d76d1ce2abc0e5f21ca",
+  "tokenizer_config.json": "844b642c73a91359722f47b35705f7174686df33d252695d8572cf9ac03a6389",
+  "vocab.json": "e2aa043ef015641d363d8288e7c241c85e36a5c761fb303598e0710233344387",
   "onnx/encoder_model_q4f16.onnx": "aafd3383f1aa372db0825a885730ebbbae7e34871ec0460428663c69641a63d0",
   "onnx/decoder_model_merged_q4f16.onnx": "45981cdd958a4c8e1447839850d2e6e27e30974ccbe31b4a1e5ebe9ad8965a5f",
 });
@@ -104,6 +115,7 @@ async function downloadFile(directory, path, expectedSize, fetcher, onProgress, 
     await writer.close();
     const saved = await handle.getFile();
     if (saved.size !== expectedSize) throw new Error(`Verifica file ${path} fallita dopo la scrittura.`);
+    if (hashes[path] && await hashStream(saved.stream()) !== hashes[path]) throw new Error(`SHA-256 del file salvato ${path} diverso dalla revisione fissata.`);
   } catch (error) {
     await reader.cancel().catch(() => {});
     await writer.abort?.().catch(() => {});

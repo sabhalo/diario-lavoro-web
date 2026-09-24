@@ -2,11 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { MemoryDirectoryAdapter } from "../src/archive.js";
-import { createLargeModelCache, LARGE_MODEL_ID, LARGE_MODEL_REVISION, prepareLargeModelFiles } from "../src/model-files.js";
+import { createLargeModelCache, LARGE_MODEL_ASSETS, LARGE_MODEL_ID, LARGE_MODEL_REVISION, LARGE_MODEL_SHA256, prepareLargeModelFiles } from "../src/model-files.js";
 import { buildResourcePaths } from "../node_modules/@huggingface/transformers/src/utils/hub.js";
 
 const url = (path) => `https://huggingface.co/${LARGE_MODEL_ID}/resolve/${LARGE_MODEL_REVISION}/${path}`;
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
+
+test("every pinned model asset has a SHA-256 digest", () => {
+  assert.deepEqual(Object.keys(LARGE_MODEL_SHA256).sort(), Object.keys(LARGE_MODEL_ASSETS).sort());
+  for (const value of Object.values(LARGE_MODEL_SHA256)) assert.match(value, /^[a-f0-9]{64}$/);
+});
 
 test("model files stream into the selected directory, then serve pinned offline URLs", async () => {
   const root = new MemoryDirectoryAdapter();
@@ -51,4 +56,23 @@ test("corrupted bytes and wrong remote digest are rejected without touching medi
   const cache = await createLargeModelCache(root, { assets, hashes });
   assert.equal(await cache.match(url("config.json")), undefined);
   assert.equal(root.directories.has("sessions"), false);
+});
+
+test("a storage write that changes bytes without changing size is rejected before the manifest", async () => {
+  const root = new MemoryDirectoryAdapter(), bytes = new TextEncoder().encode("abcdef");
+  const models = await root.getDirectoryHandle("modelli", { create: true });
+  const model = await models.getDirectoryHandle("whisper-large-v3-turbo-q4f16", { create: true });
+  const originalGetFileHandle = model.getFileHandle.bind(model);
+  model.getFileHandle = async (name, options) => {
+    const handle = await originalGetFileHandle(name, options);
+    if (name !== "config.json") return handle;
+    return { ...handle, async createWritable() {
+      const writer = await handle.createWritable();
+      return { ...writer, async close() { await writer.close(); model.files.set(name, new Blob(["ghijkl"])); } };
+    } };
+  };
+  const assets = { "config.json": bytes.length }, hashes = { "config.json": digest(bytes) };
+  await assert.rejects(prepareLargeModelFiles(root, { assets, hashes, fetcher: async () => new Response(new Blob([bytes])) }), /SHA-256 del file salvato/);
+  const manifest = JSON.parse(await (await (await model.getFileHandle("manifest.json", { create: true })).getFile()).text() || "{}");
+  assert.equal(manifest.assets?.["config.json"], undefined);
 });

@@ -30,7 +30,7 @@ Compilare una riga per ogni livello browser e per il motore locale su **entrambi
 | Windows | Motore locale | Da compilare | Solo smoke API | Due clip brevi esatte; prova completa aperta | 25,16 s per clip di 2,64 s su CPU | Un segmento temporizzato per clip | Vedere sotto |
 | macOS | Browser rapido | Da compilare | Non eseguito | | | | |
 | macOS | Browser bilanciato | Da compilare | Non eseguito | | | | |
-| macOS | Browser qualità massima · large-v3-turbo q4f16/WebGPU | Clip CC0 0037 | Solo smoke online | Testo corrispondente al riferimento; qualità rappresentativa aperta | Caricamento circa 22,9 s, inferenza circa 7,7 s su runner Apple Silicon | Timestamp restituiti; precisione non valutata | Cache API fallisce intorno a 431 MB di uso browser; nuova cartella modello ancora da verificare |
+| macOS | Browser qualità massima · large-v3-turbo q4f16/WebGPU | Clip CC0 0037 | Smoke online e riapertura offline pass sul runner con quota browser ampliata | Testo corrispondente al riferimento; qualità rappresentativa aperta | Con cartella OPFS di prova: caricamento 53,81 s iniziale e 32,62 s offline, inferenza 8,39–11,45 s | Timestamp restituiti; precisione non valutata | CI `35942551191`; OPFS senza quota ampliata fallisce, cartella scelta dall'utente e Chrome normale non verificati |
 | macOS | Motore locale | Da compilare | Non eseguito | | | | |
 
 ## Prove di comportamento
@@ -43,8 +43,9 @@ Compilare una riga per ogni livello browser e per il motore locale su **entrambi
 | Microfono e audio computer restano due sorgenti in una vista cronologica | Smoke UI helper pass con due run/POST, test vista/export pass | Non eseguito | Segmenti con etichette e tempi, inclusa sovrapposizione |
 | Media solo audio e video con audio, brevi e lunghi | Smoke Chrome breve entrambi formati pass; lungo aperto | Smoke Chrome CI breve entrambi formati pass; lungo aperto | ID registrazione, frammenti, intervalli |
 | Nessun caricamento in RAM dell'intero video lungo | Non eseguito | Non eseguito | Profilo memoria durante il job |
-| Download esplicito e secondo avvio offline del modello browser | Smoke Rapido/Bilanciato/Massima pass su clip breve | Non eseguito | Cache o cartella modello, stato rete, risultato |
+| Download esplicito e secondo avvio offline del modello browser | Smoke Rapido/Bilanciato/Massima pass su clip breve | Massima pass solo in OPFS di prova con quota browser ampliata; Rapido/Bilanciato non eseguiti | Cache o cartella modello, stato rete, risultato |
 | Annullamento, errore server, file mancante e retry | Test di dominio parziali; scenario reale aperto | Non eseguito | Stato run e media originale intatto |
+| Doppio clic su Trascrivi e navigazione durante il job | Smoke UI/helper pass: un job, due POST per le due sorgenti; Ricerca resta aperta | Non eseguito | Numero di run, richieste e vista corrente |
 | Ricerca, export, riapertura e delete preservano sorgente e provenienza | Test e smoke UI pass su fixture; riapertura reale aperta | Non eseguito | Manifest, file archivio e UI |
 
 La cattura reale, i permessi macOS e le policy per audio aziendale sono gate distinti dalla riuscita dei test automatici. Registrare ogni limite o discrepanza nel ticket Wayfinder pertinente prima di dichiarare completata la funzionalità.

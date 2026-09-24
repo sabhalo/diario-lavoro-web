@@ -27,9 +27,13 @@ try {
   await page.getByText("ASR UI E2E").click();
   await page.locator("#asr-path").selectOption("local");
   if (requests.length) throw new Error("ASR invoked before the explicit click");
-  await page.getByRole("button", { name: "Trascrivi sessione" }).click();
+  await page.evaluate(() => { const button = document.querySelector('[data-action="transcribe-session"]'); button.click(); button.click(); });
   await page.locator("#asr-progress").waitFor({ state: "visible", timeout: 10_000 });
   const during = await page.evaluate(async () => { const { FileArchive } = await import("/src/archive.js"); const archive = await FileArchive.open(await navigator.storage.getDirectory()); return (await archive.all("transcriptRuns")).map((run) => run.status); });
+  await page.getByRole("button", { name: "Ricerca" }).click();
+  await page.waitForFunction(async () => { const { FileArchive } = await import("/src/archive.js"); const archive = await FileArchive.open(await navigator.storage.getDirectory()); const runs = await archive.all("transcriptRuns"); return runs.length >= 2 && runs.every((run) => run.status === "completa"); }, null, { timeout: 180_000 });
+  if (await page.getByRole("heading", { name: "Ricerca" }).count() !== 1) throw new Error("Il job ASR ha sovrascritto la vista Ricerca.");
+  await page.getByRole("button", { name: "Cattura" }).click();
   await page.locator("#asr-progress").waitFor({ state: "hidden", timeout: 180_000 });
   const outcome = await page.evaluate(async () => { const { FileArchive } = await import("/src/archive.js"); const archive = await FileArchive.open(await navigator.storage.getDirectory()); return { runs: (await archive.all("transcriptRuns")).map((run) => ({ source: run.source, status: run.status, coverage: run.coverage.length, error: run.error })), segments: (await archive.all("transcriptSegments")).map((segment) => ({ source: segment.source, text: segment.text })) }; });
   console.log(JSON.stringify({ ...outcome, during, requests, errors }));
