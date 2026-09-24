@@ -4,6 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:browser-asr": "node scripts/build-browser-asr.mjs",
+    "smoke:browser": "node scripts/run-browser-smokes.mjs",
+    "smoke:maximum": "node scripts/run-browser-smokes.mjs --maximum",
     "test": "node --test"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.3.0",
+    "@noble/hashes": "^2.0.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "playwright-core": "^1.63.0"
   }
 }

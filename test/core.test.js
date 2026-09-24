@@ -22,11 +22,20 @@ test("storage admission rejects projected quota exhaustion", () => {
   assert.equal(storageAdmission({ usage: 95, quota: 100 }, 1).allowed, false);
   assert.equal(storageAdmission({}, 1).known, false);
 });
-test("search only indexes session titles, notes, and events", () => {
+test("search indexes text actually present in titles, notes, and events", () => {
   const hits = searchDocuments("progetto", { sessions: [{ id: "s1", title: "Progetto alfa" }], notes: [{ id: "n1", sessionId: "s1", startMs: 3_000, text: "progetto discusso" }], events: [] });
   assert.equal(hits.length, 2);
   assert.equal(hits[1].offsetMs, 3_000);
   assert.equal(hits[1].kind, "nota");
+});
+test("search distinguishes transcript source, version, and missing timestamps", () => {
+  const transcriptRuns = [{ id: "run1", version: 2, status: "parziale", active: true }];
+  const transcriptSegments = [{ id: "seg1", runId: "run1", sessionId: "s1", recordingId: "r1", source: "audio del computer", text: "progetto discusso", timed: false, startMs: null }];
+  const hits = searchDocuments("progetto", { transcriptRuns, transcriptSegments });
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].source, "audio del computer");
+  assert.equal(hits[0].offsetMs, null);
+  assert.match(hits[0].textStatus, /versione 2.*parziale.*attiva/);
 });
 test("continuous recorder intervals use monotonic timecodes without gaps", () => {
   const first = continuousBlockInterval({ recordingStartMs: 1_000, previousEndMs: null, timecodeMs: 30_000, observedAtMs: 31_500 });

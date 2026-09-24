@@ -6,7 +6,7 @@ Il repository pubblico corrente è [sabhalo/diario-lavoro-web](https://github.co
 
 ## Stato della build
 
-La build corrente registra solo **video e audio**: monitor con eventuale audio del computer e microfono restano flussi distinti. Non include ASR, trascrizione, modelli Whisper, download di modelli o ricerca/esportazione testuale derivata dall'audio.
+La build registra **video e audio**: monitor con eventuale audio del computer e microfono restano flussi distinti. Include trascrizione locale su richiesta, tramite un modello nel browser oppure un motore ASR separato sullo stesso computer. La trascrizione non parte durante la cattura e non viene inviata a un servizio cloud. Se una registrazione contiene video, al motore viene inviata soltanto la traccia audio estratta.
 
 Per ogni tratto l'app mantiene un `MediaRecorder` vivo per flusso e riceve frammenti progressivi ogni 30 secondi; non riavvia l'encoder fra due frammenti. Gli intervalli sono costruiti dai timecode del recorder con fallback monotono, per evitare lacune introdotte dalla finalizzazione o dalla scrittura di un blocco precedente. Display usa preferibilmente WebM VP8/Opus a 4 Mb/s più 128 kb/s audio; il microfono usa WebM/Opus a 128 kb/s, con fallback alla configurazione supportata dal browser.
 
@@ -22,11 +22,29 @@ python3 -m http.server 4173 --bind 127.0.0.1
 
 Aprire `http://127.0.0.1:4173/` nel browser. In alternativa, con Docker Desktop o Docker Engine e Compose già disponibili, eseguire `docker compose up --build` e aprire lo stesso indirizzo. Il container serve soltanto file statici su `127.0.0.1:4173`; i dati restano nella cartella scelta in Chrome sul computer host.
 
-Eseguire i test del dominio con Node 20+:
+Per preparare i moduli di trascrizione nel browser servono Node 20+ e un download iniziale delle dipendenze. La build statica generata è inclusa nel repository; il browser scarica i pesi del modello soltanto dopo il clic su **Prepara modello**:
+
+```bash
+npm ci
+npm run build:browser-asr
+```
+
+Eseguire i test:
 
 ```bash
 npm test
+python -m unittest discover -s local-asr -p 'test_*.py' -v
 ```
+
+## Trascrizione locale
+
+Nella sezione **Trascrizione locale** scegliere **Nel browser** oppure **Motore locale sul computer**. Per il browser scegliere il livello, cliccare **Prepara modello con download esplicito**, quindi **Trascrivi tratto** o **Trascrivi sessione**. I livelli Rapido e Bilanciato usano Whisper in JavaScript/WebAssembly e conservano i pesi nella cache del browser. Il candidato Qualità massima usa WebGPU: il suo pulsante di preparazione salva circa 568 MB di pesi e metadati in `modelli/whisper-large-v3-turbo-q4f16/` nella cartella archivio collegata. Il download è esplicito, ogni file è verificato con SHA-256 anche dopo la scrittura e il caricamento successivo usa i file locali. La cartella deve avere spazio sufficiente; l'app non misura automaticamente lo spazio disponibile. La trascrizione con questo livello resta disabilitata finché non supera le prove di qualità e compatibilità su Windows e Mac.
+
+Per il motore separato seguire le istruzioni in [local-asr/README.md](local-asr/README.md). Richiede Python 3.10+, il programma `whisper-cli` di whisper.cpp e un modello multilingue installati localmente. Inserire nell'app l'**URL completo** dell'endpoint, per esempio `http://127.0.0.1:8765/asr`, con porta e percorso. L'app effettua un controllo del servizio sullo stesso URL prima della trascrizione e invia finestre WAV solo dopo il clic. Il server accetta soltanto connessioni loopback e l'origine browser configurata. LM Studio e Ollama non espongono per questa integrazione il contratto audio richiesto: l'URL libero permette di configurare il servizio ASR dedicato, senza presumere che un endpoint di chat sappia trascrivere.
+
+La vista ordina i segmenti nel tempo e indica **Microfono** o **Audio del computer**. I risultati, la sorgente, il modello e la copertura elaborata sono salvati nella cartella archivio; una run incompleta o fallita resta distinguibile da una completa. Un tratto senza testo non dimostra che l'audio fosse silenzioso. Conservare sempre il media originale per correggere o verificare il testo.
+
+Le stesse opzioni e lo stesso contratto HTTP sono previsti per Windows e macOS. Le prove eseguite e quelle ancora necessarie sono registrate in [docs/verification/local-transcription-matrix.md](docs/verification/local-transcription-matrix.md).
 
 ## Avvio sul Mac
 
@@ -49,7 +67,7 @@ Al primo avvio scegliere una cartella locale dedicata e concedere il permesso le
 3. Selezionare **Esporta tratto** oppure **Esporta**. Lo ZIP contiene `manifest.json` e un file media ricomposto per ogni sequenza continua di recorder/flusso; monitor e microfono restano separati.
 4. Estrarre lo ZIP e aprire il file media nel browser o in un player compatibile. Se il manifest segnala header iniziale o continuità mancanti, quel segmento non viene spacciato per file riproducibile.
 
-Questo percorso è coperto da test sintetici ma non è ancora una prova eseguita sul Mac o su Windows.
+Il percorso di export resta da verificare su registrazioni reali nei due sistemi operativi.
 
 Al primo avvio di una cattura Chrome chiede di selezionare il monitor e l'eventuale audio del computer, quindi il microfono separatamente. Scegliere solo contenuti innocui per le prove e concedere permessi del sito/macOS solo se consentiti dalla policy aziendale. Non scegliere automaticamente modalità ridotte né aggirare permessi negati.
 
@@ -59,12 +77,12 @@ Al primo avvio di una cattura Chrome chiede di selezionare il monitor e l'eventu
 - richiede monitor/audio del computer e microfono in due richieste separate; verifica la superficie `monitor` e propone due campioni da riascoltare separatamente;
 - salva frammenti media progressivi senza stop/start periodico del recorder;
 - interrompe il tratto alla perdita di un flusso, dichiara lacune/interruzioni e riconcilia i tratti rimasti `in-corso` alla riapertura;
-- offre cronologia, ricerca locale di titoli/note/eventi, riproduzione, export ZIP di manifest+media e rimozione con conferma dei dati controllati dall'app.
+- offre cronologia, ricerca locale, trascrizioni su richiesta, riproduzione, export ZIP di manifest+media e rimozione con conferma dei dati controllati dall'app.
 
 ## Evidenze e limiti
 
-I test automatici verificano funzioni di dominio, intervalli continui calcolati da timecode, archivio ZIP e preflight. Il browser locale è stato caricato senza comandi ASR e senza errori in console. Queste evidenze non dimostrano una registrazione reale.
+I test automatici verificano funzioni di dominio, intervalli continui calcolati da timecode, archivio ZIP, contratto del server ASR e parti della pipeline browser. Gli smoke con clip italiani brevi e il loro limite sono descritti nella matrice di verifica. Queste evidenze non dimostrano ancora una registrazione reale lunga né la qualità su parlato spontaneo.
 
 Restano da eseguire sulla build finale, con una procedura sicura e dati innocui, la cattura continua e la riproduzione/export dei frammenti su Mac M4 Pro e su Windows, compresa una prova lunga, permessi, codec effettivi, quota e recupero dopo guasto. La prova breve Mac dei tre flussi è solo riferita dall'utente; non autorizza uso reale con dati aziendali o persone. Il gate policy aziendale rimane separato e obbligatorio.
 
-Il piano operativo della modifica è in [`.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md`](.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md). La specifica candidata storica è in [`docs/spec.md`](docs/spec.md); la nota iniziale ne indica le sezioni ASR superate dalla build corrente. I documenti datati 2026-09-22 e lo spike di preflight sono evidenza storica, non istruzioni per avviare questa build.
+Il piano della trascrizione è in [`.scratch/local-transcription/spec.md`](.scratch/local-transcription/spec.md); la [mappa Wayfinder](.scratch/local-transcription/map.md) raccoglie decisioni e verifiche aperte. La [specifica della prima versione](docs/spec.md), il [ticket media e cattura continua](.scratch/diario-di-lavoro/issues/08-solo-media-e-cattura-continua.md) e i documenti datati 2026-09-22 restano evidenza storica.

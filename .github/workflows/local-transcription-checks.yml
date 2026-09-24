@@ -1,0 +1,108 @@
+name: Local transcription checks
+
+on:
+  push:
+    branches:
+      - develop
+      - 'feature/**'
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  cross-platform:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run build:browser-asr
+      - run: npm test
+      - run: python -m unittest discover -s local-asr -p 'test_*.py' -v
+      - run: npm run smoke:browser
+
+  maximum-candidate:
+    if: github.ref == 'refs/heads/feature/local-transcription-planning'
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run build:browser-asr
+      - run: df -h /
+      - run: npm run smoke:maximum
+
+  browser-tier-candidates:
+    if: github.ref == 'refs/heads/feature/local-transcription-planning'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+        tier: [rapido, bilanciato]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run build:browser-asr
+      - run: node scripts/run-browser-smokes.mjs --browser-model ${{ matrix.tier == 'bilanciato' && '--balanced' || '' }}
+
+  local-helper-macos-smoke:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/local-transcription-planning'
+    runs-on: macos-15 # GitHub-hosted Apple Silicon (M1)
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build whisper.cpp v1.9.2 with Metal
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = 'arm64'
+          source_dir="$RUNNER_TEMP/whisper.cpp"
+          git clone --depth 1 --branch v1.9.2 https://github.com/ggml-org/whisper.cpp.git "$source_dir"
+          test "$(git -C "$source_dir" rev-parse HEAD)" = '306c88f4d1286aec1bf96e544632897886af5501'
+          cmake -S "$source_dir" -B "$source_dir/build" -DGGML_METAL=ON -DWHISPER_BUILD_IS_DEV=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON -DWHISPER_BUILD_SERVER=OFF
+          cmake --build "$source_dir/build" --config Release --target whisper-cli -j 3
+          "$source_dir/build/bin/whisper-cli" --version
+      - name: Download and verify multilingual model
+        shell: bash
+        run: |
+          set -euo pipefail
+          model="$RUNNER_TEMP/ggml-large-v3-turbo-q5_0.bin"
+          curl --fail --location --retry 3 --output "$model" 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin?download=true'
+          printf '%s  %s\n' 'e050f7970618a659205450ad97eb95a18d69c9ee' "$model" | shasum -a 1 --check -
+      - name: Exercise loopback helper with Italian fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          python local-asr/ci_smoke.py \
+            --whisper-cli "$RUNNER_TEMP/whisper.cpp/build/bin/whisper-cli" \
+            --model "$RUNNER_TEMP/ggml-large-v3-turbo-q5_0.bin" \
+            --audio test/fixtures/italiano-cc0-4000000037-16k.wav
