@@ -12,6 +12,7 @@ import json
 import re
 import select
 import socket
+import socketserver
 import subprocess
 import tempfile
 import time
@@ -213,6 +214,14 @@ def run_whisper(config: Config, audio: bytes, duration: float, connection: socke
 class AsrServer(ThreadingHTTPServer):
     daemon_threads = True
 
+    def server_bind(self) -> None:
+        # HTTPServer.server_bind calls socket.getfqdn(127.0.0.1) before listen.
+        # Reverse DNS can stall for >30 seconds on some macOS runners; the
+        # listener is loopback-only and needs no resolved hostname.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name = self.server_address[0]
+        self.server_port = self.server_address[1]
+
     def __init__(self, config: Config):
         config.validate()
         self.address_family = socket.AF_INET6 if config.host == "::1" else socket.AF_INET
@@ -364,6 +373,7 @@ def main() -> None:
     args = parser.parse_args()
     config = Config(args.whisper_cli.resolve(), args.model.resolve(), args.origin, args.host, args.port, args.path, args.timeout)
     try:
+        print(f"Diario local ASR binding {config.host}:{config.port}{config.path}", flush=True)
         with AsrServer(config) as server:
             display_host = f"[{config.host}]" if config.host == "::1" else config.host
             print(f"Diario local ASR listening on http://{display_host}:{config.port}{config.path}; ready={config.ready}", flush=True)

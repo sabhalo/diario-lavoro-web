@@ -126,7 +126,7 @@ def main() -> None:
                 if status != 200:
                     raise AssertionError(f"POST returned {status}: {result}")
                 check_result(result, duration)
-                print(f"Mac local-helper smoke passed: {duration:.2f}s Italian WAV, exact text, {len(result['segments'])} timed segment(s), HTTP POST {elapsed:.2f}s")
+                print(f"Local-helper smoke passed: {duration:.2f}s Italian WAV, exact text, {len(result['segments'])} timed segment(s), HTTP POST {elapsed:.2f}s")
             except Exception:
                 log.flush()
                 print("Helper log:\n" + log_path.read_text(encoding="utf-8")[-4000:], file=sys.stderr)

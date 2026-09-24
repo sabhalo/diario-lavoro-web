@@ -8,6 +8,7 @@ import tempfile
 import threading
 import unittest
 import wave
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -85,6 +86,17 @@ class HelperApiTests(unittest.TestCase):
         })
         self.assertEqual(status, 204)
         self.assertEqual(headers["Access-Control-Allow-Origin"], ORIGIN)
+
+    def test_startup_does_not_reverse_resolve_loopback(self):
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        config = replace(self.server.config, port=port)
+        with patch("socket.getfqdn", side_effect=AssertionError("reverse DNS must not run")) as resolver:
+            with AsrServer(config) as server:
+                self.assertEqual(server.server_name, "127.0.0.1")
+                self.assertEqual(server.server_port, port)
+        resolver.assert_not_called()
 
     def test_rejects_other_origin_and_path(self):
         status, headers, data = self.request(headers={"Origin": "https://attacker.example"})
