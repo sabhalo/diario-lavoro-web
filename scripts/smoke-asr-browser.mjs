@@ -60,13 +60,20 @@ try {
       return result;
     }, modelId);
     console.log(JSON.stringify({ model }));
+    const normalize = (value) => value.normalize("NFKC").toLocaleLowerCase("it-IT").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    const reference = "Aspettiamo un po', perché a volte ci vuole un po' di tempo.";
+    if (normalize(model.text) !== normalize(reference)) process.exitCode = 1;
     await page.reload();
-    await page.context().setOffline(true);
+    await page.route("**/*", (route) => ["127.0.0.1", "localhost"].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
     const offline = await page.evaluate(async (modelId) => {
       const { loadWhisper } = await import("/src/browser-asr.bundle.js");
       const pipe = await loadWhisper(modelId, { device: "wasm", dtype: "q8" });
-      return typeof pipe === "function";
+      const wav = new DataView(await (await fetch("/test/fixtures/italiano-cc0-4000000037-16k.wav")).arrayBuffer());
+      const samples = new Float32Array((wav.byteLength - 44) / 2);
+      for (let i = 0; i < samples.length; i++) samples[i] = wav.getInt16(44 + i * 2, true) / 32768;
+      return await pipe(samples, { language: "italian", task: "transcribe", return_timestamps: true });
     }, modelId);
-    console.log(JSON.stringify({ offlineReloadFromCache: offline }));
+    console.log(JSON.stringify({ offline }));
+    if (normalize(offline.text) !== normalize(reference)) process.exitCode = 1;
   }
 } finally { await browser.close(); }

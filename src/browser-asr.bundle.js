@@ -34293,7 +34293,7 @@ var CONCRETE_DTYPES = Object.keys(DEFAULT_DTYPE_SUFFIX_MAPPING);
 env2.useBrowserCache = true;
 var nativeFetch = globalThis.fetch.bind(globalThis);
 var LARGE_MODEL_FILE = /^https:\/\/huggingface\.co\/onnx-community\/whisper-large-v3-turbo\/resolve\/[^/]+\/onnx\/(?:encoder_model|decoder_model(?:_merged)?)_q4f16\.onnx(?:\?.*)?$/;
-var PART_BYTES = 16 * 1024 * 1024;
+var PART_BYTES = 8 * 1024 * 1024;
 var progressCallback = null;
 async function chunkedModelResponse(url, options) {
   const file = new URL(url).pathname.split("/").pop();
@@ -34334,8 +34334,9 @@ async function chunkedModelResponse(url, options) {
       manifest = { url, total, parts };
       await cache2.put(`${base}manifest.json`, new Response(JSON.stringify(manifest), { headers: { "content-type": "application/json" } }));
     } catch (error) {
+      const { usage, quota } = await navigator.storage.estimate();
       await caches.delete(cacheName);
-      throw error;
+      throw new Error(`Cache ${file}: ${error.name || "errore"} al blocco ${parts} dopo ${total} byte; uso ${usage}/${quota} byte. ${error.message || ""}`);
     }
   }
   let next = 0;

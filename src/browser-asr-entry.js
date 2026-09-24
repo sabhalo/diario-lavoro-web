@@ -4,7 +4,7 @@ import { env, pipeline } from "@huggingface/transformers";
 env.useBrowserCache = true;
 const nativeFetch = globalThis.fetch.bind(globalThis);
 const LARGE_MODEL_FILE = /^https:\/\/huggingface\.co\/onnx-community\/whisper-large-v3-turbo\/resolve\/[^/]+\/onnx\/(?:encoder_model|decoder_model(?:_merged)?)_q4f16\.onnx(?:\?.*)?$/;
-const PART_BYTES = 16 * 1024 * 1024;
+const PART_BYTES = 8 * 1024 * 1024;
 let progressCallback = null;
 
 async function chunkedModelResponse(url, options) {
@@ -43,8 +43,9 @@ async function chunkedModelResponse(url, options) {
       manifest = { url, total, parts };
       await cache.put(`${base}manifest.json`, new Response(JSON.stringify(manifest), { headers: { "content-type": "application/json" } }));
     } catch (error) {
+      const { usage, quota } = await navigator.storage.estimate();
       await caches.delete(cacheName);
-      throw error;
+      throw new Error(`Cache ${file}: ${error.name || "errore"} al blocco ${parts} dopo ${total} byte; uso ${usage}/${quota} byte. ${error.message || ""}`);
     }
   }
   let next = 0;
