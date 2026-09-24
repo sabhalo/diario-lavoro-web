@@ -12,16 +12,17 @@ try {
   const transcribe = () => page.evaluate(async (input) => {
     const { loadWhisper } = await import("/src/browser-asr.bundle.js");
     const model = "onnx-community/whisper-large-v3-turbo";
+    const modelDirectory = await navigator.storage.getDirectory();
     const adapter = await navigator.gpu?.requestAdapter();
     const started = performance.now();
-    const pipe = await loadWhisper(model, { device: "webgpu", dtype: "q4f16" });
+    const pipe = await loadWhisper(model, { device: "webgpu", dtype: "q4f16", modelDirectory });
     const loadedSeconds = (performance.now() - started) / 1000;
     const inferStarted = performance.now();
     const transcript = await pipe(Float32Array.from(input), { language: "italian", task: "transcribe", return_timestamps: true });
     return { model, adapter: adapter?.info || null, loadedSeconds, inferenceSeconds: (performance.now() - inferStarted) / 1000, transcript };
   }, samples);
   const online = await transcribe();
-  const cache = await page.evaluate(async () => ({ storage: await navigator.storage.estimate(), caches: await Promise.all((await caches.keys()).map(async (name) => ({ name, files: (await (await caches.open(name)).keys()).length }))) }));
+  const cache = await page.evaluate(async () => ({ storage: await navigator.storage.estimate(), modelFiles: await (async () => { const root = await navigator.storage.getDirectory(); const models = await root.getDirectoryHandle("modelli"); const model = await models.getDirectoryHandle("whisper-large-v3-turbo-q4f16"); return Array.fromAsync(model.keys()); })() }));
   await page.reload();
   await page.route("**/*", (route) => ["127.0.0.1", "localhost"].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
   let offline;

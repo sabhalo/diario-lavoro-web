@@ -2,6 +2,7 @@ import { build } from "esbuild";
 import { copyFile, readFile, writeFile } from "node:fs/promises";
 
 await build({ entryPoints: ["src/browser-asr-entry.js"], bundle: true, minify: false, format: "esm", platform: "browser", outfile: "src/browser-asr.bundle.js" });
+await build({ entryPoints: ["src/model-files.js"], bundle: true, minify: false, format: "esm", platform: "browser", outfile: "src/model-files.bundle.js" });
 // The upstream architecture table contains a 32-character Mistral class name
 // that GitHub mistakes for an API key. Keep its runtime value while splitting
 // the static literal in the generated artifact.

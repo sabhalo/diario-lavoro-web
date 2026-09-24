@@ -26,24 +26,24 @@ Compilare una riga per ogni livello browser e per il motore locale su **entrambi
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Windows | Browser rapido · Whisper base q8/WASM | Clip CC0 0037 | Solo smoke clip breve | Testo italiano corrispondente al riferimento; benchmark rappresentativo aperto | Non misurata in modo ripetibile | Timestamp restituiti; precisione non valutata | Chrome headless, preparazione e reload offline dalla cache |
 | Windows | Browser bilanciato · Whisper small q8/WASM | Clip CC0 0037 | Solo smoke clip breve | Testo italiano corrispondente al riferimento; benchmark rappresentativo aperto | Non misurata in modo ripetibile | Timestamp restituiti; precisione non valutata | Chrome headless, preparazione e reload offline dalla cache |
-| Windows | Browser qualità massima | Da compilare | Non eseguito | | | | |
+| Windows | Browser qualità massima · large-v3-turbo q4f16/WebGPU | Clip CC0 0037 | Smoke online e riapertura offline pass | Testo corrispondente al riferimento; qualità rappresentativa aperta | Con cartella modello: caricamento 33,85 s iniziale e 21,03 s offline, inferenza 2,36–2,38 s in Chrome headless | Timestamp restituiti; precisione non valutata | File in cartella OPFS di prova, rete esterna bloccata al secondo avvio; cartella scelta dall'utente ancora da provare |
 | Windows | Motore locale | Da compilare | Solo smoke API | Due clip brevi esatte; prova completa aperta | 25,16 s per clip di 2,64 s su CPU | Un segmento temporizzato per clip | Vedere sotto |
 | macOS | Browser rapido | Da compilare | Non eseguito | | | | |
 | macOS | Browser bilanciato | Da compilare | Non eseguito | | | | |
-| macOS | Browser qualità massima | Da compilare | Non eseguito | | | | |
+| macOS | Browser qualità massima · large-v3-turbo q4f16/WebGPU | Clip CC0 0037 | Solo smoke online | Testo corrispondente al riferimento; qualità rappresentativa aperta | Caricamento circa 22,9 s, inferenza circa 7,7 s su runner Apple Silicon | Timestamp restituiti; precisione non valutata | Cache API fallisce intorno a 431 MB di uso browser; nuova cartella modello ancora da verificare |
 | macOS | Motore locale | Da compilare | Non eseguito | | | | |
 
 ## Prove di comportamento
 
 | Verifica | Windows | macOS | Evidenza da conservare |
 | --- | --- | --- | --- |
-| Nessuna trascrizione o richiesta HTTP prima del clic | Smoke UI pass | Non eseguito | Traccia di rete e stato UI |
+| Nessuna trascrizione o richiesta HTTP prima del clic | Smoke UI pass | Smoke UI CI pass | Traccia di rete e stato UI |
 | URL completo, preflight, CORS e rifiuto di host/redirect non loopback | Test unitari e smoke preflight pass; UI errori aperta | Non eseguito | URL, risposta e messaggio UI |
-| Payload al servizio contiene solo WAV audio, mai frame video | Test contratto pass; smoke video e POST separati, combinazione E2E video→helper aperta | Non eseguito | Tipo, dimensione e intestazione del file ricevuto |
+| Payload al servizio contiene solo WAV audio, mai frame video | Test contratto pass; smoke video e POST separati, combinazione E2E video→helper aperta | Smoke UI su video sintetico pass; helper reale non eseguito | Tipo, dimensione e intestazione del file ricevuto |
 | Microfono e audio computer restano due sorgenti in una vista cronologica | Smoke UI helper pass con due run/POST, test vista/export pass | Non eseguito | Segmenti con etichette e tempi, inclusa sovrapposizione |
-| Media solo audio e video con audio, brevi e lunghi | Smoke Chrome breve entrambi formati pass; lungo aperto | Non eseguito | ID registrazione, frammenti, intervalli |
+| Media solo audio e video con audio, brevi e lunghi | Smoke Chrome breve entrambi formati pass; lungo aperto | Smoke Chrome CI breve entrambi formati pass; lungo aperto | ID registrazione, frammenti, intervalli |
 | Nessun caricamento in RAM dell'intero video lungo | Non eseguito | Non eseguito | Profilo memoria durante il job |
-| Download esplicito e secondo avvio offline del modello browser | Smoke Rapido/Bilanciato pass | Non eseguito | Cache, stato rete, risultato |
+| Download esplicito e secondo avvio offline del modello browser | Smoke Rapido/Bilanciato/Massima pass su clip breve | Non eseguito | Cache o cartella modello, stato rete, risultato |
 | Annullamento, errore server, file mancante e retry | Test di dominio parziali; scenario reale aperto | Non eseguito | Stato run e media originale intatto |
 | Ricerca, export, riapertura e delete preservano sorgente e provenienza | Test e smoke UI pass su fixture; riapertura reale aperta | Non eseguito | Manifest, file archivio e UI |
 

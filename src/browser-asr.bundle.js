@@ -5246,9 +5246,9 @@ var UNSUPPORTED_POSIX_BRACKET_RE = /^\[(?:\.[^\]]*\.\]|=[^\]]*=\])/;
 var FIXED_WIDTH_ESCAPE_RE = /^(?:\\x[0-9A-Fa-f]{2}|\\u[0-9A-Fa-f]{4}|\\c[A-Za-z])/;
 var is_ascii_letter = (char) => char >= "A" && char <= "Z" || char >= "a" && char <= "z";
 var character_at = (text, index) => String.fromCodePoint(text.codePointAt(index));
-var get_ascii_folded_hex_atom = (hex) => {
-  if (!/^[0-9A-Fa-f]{1,8}$/.test(hex)) return null;
-  const code_point = Number.parseInt(hex, 16);
+var get_ascii_folded_hex_atom = (hex2) => {
+  if (!/^[0-9A-Fa-f]{1,8}$/.test(hex2)) return null;
+  const code_point = Number.parseInt(hex2, 16);
   if (code_point > 127) return null;
   const letter = String.fromCharCode(code_point);
   return is_ascii_letter(letter) ? `[${letter.toLowerCase()}${letter.toUpperCase()}]` : null;
@@ -34289,84 +34289,504 @@ async function pipeline2(task, model = null, {
 var stdout_write = apis.IS_PROCESS_AVAILABLE ? (x) => process.stdout.write(x) : (x) => console.log(x);
 var CONCRETE_DTYPES = Object.keys(DEFAULT_DTYPE_SUFFIX_MAPPING);
 
-// src/browser-asr-entry.js
-env2.useBrowserCache = true;
-var nativeFetch = globalThis.fetch.bind(globalThis);
-var LARGE_MODEL_FILE = /^https:\/\/huggingface\.co\/onnx-community\/whisper-large-v3-turbo\/resolve\/[^/]+\/onnx\/(?:encoder_model|decoder_model(?:_merged)?)_q4f16\.onnx(?:\?.*)?$/;
-var PART_BYTES = 8 * 1024 * 1024;
-var progressCallback = null;
-async function chunkedModelResponse(url, options) {
-  const file = new URL(url).pathname.split("/").pop();
-  const cacheName = `diario-asr-${file}-v1`;
-  const base = `${globalThis.location.origin}/diario-model-cache/${file}-v1/`;
-  let cache2 = await caches.open(cacheName);
-  const manifestResponse = await cache2.match(`${base}manifest.json`);
-  let manifest = manifestResponse && await manifestResponse.json().catch(() => null);
-  if (manifest?.url !== url || !Number.isSafeInteger(manifest.total) || !Number.isSafeInteger(manifest.parts) || manifest.total <= 0 || manifest.parts <= 0 || !(await Promise.all(Array.from({ length: manifest.parts }, (_, i) => cache2.match(`${base}${i}`)))).every(Boolean)) {
-    await caches.delete(cacheName);
-    cache2 = await caches.open(cacheName);
-    const response = await nativeFetch(url, options);
-    if (!response.ok || !response.body) return response;
-    const reader = response.body.getReader();
-    let pending = new Uint8Array(PART_BYTES), filled = 0, total = 0, parts = 0;
-    try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        for (let offset = 0; offset < value.length; ) {
-          const count2 = Math.min(PART_BYTES - filled, value.length - offset);
-          pending.set(value.subarray(offset, offset + count2), filled);
-          filled += count2;
-          offset += count2;
-          total += count2;
-          if (filled === PART_BYTES) {
-            await cache2.put(`${base}${parts++}`, new Response(pending));
-            pending = new Uint8Array(PART_BYTES);
-            filled = 0;
-          }
-        }
-        const expected2 = Number(response.headers.get("content-length"));
-        if (expected2 > 0) progressCallback?.({ status: "progress", file, progress: Math.min(100, total / expected2 * 100) });
-      }
-      if (filled) await cache2.put(`${base}${parts++}`, new Response(pending.subarray(0, filled)));
-      const expected = Number(response.headers.get("content-length"));
-      if (!total || expected > 0 && total !== expected) throw new Error("Download del modello incompleto.");
-      manifest = { url, total, parts };
-      await cache2.put(`${base}manifest.json`, new Response(JSON.stringify(manifest), { headers: { "content-type": "application/json" } }));
-    } catch (error) {
-      const { usage, quota } = await navigator.storage.estimate();
-      await caches.delete(cacheName);
-      throw new Error(`Cache ${file}: ${error.name || "errore"} al blocco ${parts} dopo ${total} byte; uso ${usage}/${quota} byte. ${error.message || ""}`);
-    }
-  }
-  let next = 0;
-  return new Response(new ReadableStream({
-    async pull(controller) {
-      if (next === manifest.parts) {
-        controller.close();
-        return;
-      }
-      const part = await cache2.match(`${base}${next++}`);
-      if (!part) {
-        controller.error(new Error("Cache del modello incompleta."));
-        return;
-      }
-      controller.enqueue(new Uint8Array(await part.arrayBuffer()));
-    }
-  }), { headers: { "content-length": String(manifest.total), "content-type": "application/octet-stream" } });
+// node_modules/@noble/hashes/utils.js
+function isBytes(a) {
+  return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array";
 }
-env2.fetch = (url, options) => LARGE_MODEL_FILE.test(String(url)) && globalThis.caches ? chunkedModelResponse(String(url), options) : nativeFetch(url, options);
+function abytes(value, length, title = "") {
+  const bytes = isBytes(value);
+  const len2 = value?.length;
+  const needsLen = length !== void 0;
+  if (!bytes || needsLen && len2 !== length) {
+    const prefix = title && `"${title}" `;
+    const ofLen = needsLen ? ` of length ${length}` : "";
+    const got = bytes ? `length=${len2}` : `type=${typeof value}`;
+    throw new Error(prefix + "expected Uint8Array" + ofLen + ", got " + got);
+  }
+  return value;
+}
+function aexists(instance, checkFinished = true) {
+  if (instance.destroyed)
+    throw new Error("Hash instance has been destroyed");
+  if (checkFinished && instance.finished)
+    throw new Error("Hash#digest() has already been called");
+}
+function aoutput(out, instance) {
+  abytes(out, void 0, "digestInto() output");
+  const min3 = instance.outputLen;
+  if (out.length < min3) {
+    throw new Error('"digestInto() output" expected to be of length >=' + min3);
+  }
+}
+function clean(...arrays) {
+  for (let i = 0; i < arrays.length; i++) {
+    arrays[i].fill(0);
+  }
+}
+function createView(arr) {
+  return new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
+}
+function rotr(word, shift) {
+  return word << 32 - shift | word >>> shift;
+}
+function createHasher(hashCons, info = {}) {
+  const hashC = (msg, opts) => hashCons(opts).update(msg).digest();
+  const tmp = hashCons(void 0);
+  hashC.outputLen = tmp.outputLen;
+  hashC.blockLen = tmp.blockLen;
+  hashC.create = (opts) => hashCons(opts);
+  Object.assign(hashC, info);
+  return Object.freeze(hashC);
+}
+var oidNist = (suffix) => ({
+  oid: Uint8Array.from([6, 9, 96, 134, 72, 1, 101, 3, 4, 2, suffix])
+});
+
+// node_modules/@noble/hashes/_md.js
+function Chi(a, b, c) {
+  return a & b ^ ~a & c;
+}
+function Maj(a, b, c) {
+  return a & b ^ a & c ^ b & c;
+}
+var HashMD = class {
+  blockLen;
+  outputLen;
+  padOffset;
+  isLE;
+  // For partial updates less than block size
+  buffer;
+  view;
+  finished = false;
+  length = 0;
+  pos = 0;
+  destroyed = false;
+  constructor(blockLen, outputLen, padOffset, isLE) {
+    this.blockLen = blockLen;
+    this.outputLen = outputLen;
+    this.padOffset = padOffset;
+    this.isLE = isLE;
+    this.buffer = new Uint8Array(blockLen);
+    this.view = createView(this.buffer);
+  }
+  update(data) {
+    aexists(this);
+    abytes(data);
+    const { view, buffer, blockLen } = this;
+    const len2 = data.length;
+    for (let pos = 0; pos < len2; ) {
+      const take = Math.min(blockLen - this.pos, len2 - pos);
+      if (take === blockLen) {
+        const dataView = createView(data);
+        for (; blockLen <= len2 - pos; pos += blockLen)
+          this.process(dataView, pos);
+        continue;
+      }
+      buffer.set(data.subarray(pos, pos + take), this.pos);
+      this.pos += take;
+      pos += take;
+      if (this.pos === blockLen) {
+        this.process(view, 0);
+        this.pos = 0;
+      }
+    }
+    this.length += data.length;
+    this.roundClean();
+    return this;
+  }
+  digestInto(out) {
+    aexists(this);
+    aoutput(out, this);
+    this.finished = true;
+    const { buffer, view, blockLen, isLE } = this;
+    let { pos } = this;
+    buffer[pos++] = 128;
+    clean(this.buffer.subarray(pos));
+    if (this.padOffset > blockLen - pos) {
+      this.process(view, 0);
+      pos = 0;
+    }
+    for (let i = pos; i < blockLen; i++)
+      buffer[i] = 0;
+    view.setBigUint64(blockLen - 8, BigInt(this.length * 8), isLE);
+    this.process(view, 0);
+    const oview = createView(out);
+    const len2 = this.outputLen;
+    if (len2 % 4)
+      throw new Error("_sha2: outputLen must be aligned to 32bit");
+    const outLen = len2 / 4;
+    const state = this.get();
+    if (outLen > state.length)
+      throw new Error("_sha2: outputLen bigger than state");
+    for (let i = 0; i < outLen; i++)
+      oview.setUint32(4 * i, state[i], isLE);
+  }
+  digest() {
+    const { buffer, outputLen } = this;
+    this.digestInto(buffer);
+    const res = buffer.slice(0, outputLen);
+    this.destroy();
+    return res;
+  }
+  _cloneInto(to) {
+    to ||= new this.constructor();
+    to.set(...this.get());
+    const { blockLen, buffer, length, finished, destroyed, pos } = this;
+    to.destroyed = destroyed;
+    to.finished = finished;
+    to.length = length;
+    to.pos = pos;
+    if (length % blockLen)
+      to.buffer.set(buffer);
+    return to;
+  }
+  clone() {
+    return this._cloneInto();
+  }
+};
+var SHA256_IV = /* @__PURE__ */ Uint32Array.from([
+  1779033703,
+  3144134277,
+  1013904242,
+  2773480762,
+  1359893119,
+  2600822924,
+  528734635,
+  1541459225
+]);
+
+// node_modules/@noble/hashes/sha2.js
+var SHA256_K = /* @__PURE__ */ Uint32Array.from([
+  1116352408,
+  1899447441,
+  3049323471,
+  3921009573,
+  961987163,
+  1508970993,
+  2453635748,
+  2870763221,
+  3624381080,
+  310598401,
+  607225278,
+  1426881987,
+  1925078388,
+  2162078206,
+  2614888103,
+  3248222580,
+  3835390401,
+  4022224774,
+  264347078,
+  604807628,
+  770255983,
+  1249150122,
+  1555081692,
+  1996064986,
+  2554220882,
+  2821834349,
+  2952996808,
+  3210313671,
+  3336571891,
+  3584528711,
+  113926993,
+  338241895,
+  666307205,
+  773529912,
+  1294757372,
+  1396182291,
+  1695183700,
+  1986661051,
+  2177026350,
+  2456956037,
+  2730485921,
+  2820302411,
+  3259730800,
+  3345764771,
+  3516065817,
+  3600352804,
+  4094571909,
+  275423344,
+  430227734,
+  506948616,
+  659060556,
+  883997877,
+  958139571,
+  1322822218,
+  1537002063,
+  1747873779,
+  1955562222,
+  2024104815,
+  2227730452,
+  2361852424,
+  2428436474,
+  2756734187,
+  3204031479,
+  3329325298
+]);
+var SHA256_W = /* @__PURE__ */ new Uint32Array(64);
+var SHA2_32B = class extends HashMD {
+  constructor(outputLen) {
+    super(64, outputLen, 8, false);
+  }
+  get() {
+    const { A, B, C, D, E, F, G: G2, H } = this;
+    return [A, B, C, D, E, F, G2, H];
+  }
+  // prettier-ignore
+  set(A, B, C, D, E, F, G2, H) {
+    this.A = A | 0;
+    this.B = B | 0;
+    this.C = C | 0;
+    this.D = D | 0;
+    this.E = E | 0;
+    this.F = F | 0;
+    this.G = G2 | 0;
+    this.H = H | 0;
+  }
+  process(view, offset) {
+    for (let i = 0; i < 16; i++, offset += 4)
+      SHA256_W[i] = view.getUint32(offset, false);
+    for (let i = 16; i < 64; i++) {
+      const W15 = SHA256_W[i - 15];
+      const W2 = SHA256_W[i - 2];
+      const s0 = rotr(W15, 7) ^ rotr(W15, 18) ^ W15 >>> 3;
+      const s1 = rotr(W2, 17) ^ rotr(W2, 19) ^ W2 >>> 10;
+      SHA256_W[i] = s1 + SHA256_W[i - 7] + s0 + SHA256_W[i - 16] | 0;
+    }
+    let { A, B, C, D, E, F, G: G2, H } = this;
+    for (let i = 0; i < 64; i++) {
+      const sigma1 = rotr(E, 6) ^ rotr(E, 11) ^ rotr(E, 25);
+      const T1 = H + sigma1 + Chi(E, F, G2) + SHA256_K[i] + SHA256_W[i] | 0;
+      const sigma0 = rotr(A, 2) ^ rotr(A, 13) ^ rotr(A, 22);
+      const T2 = sigma0 + Maj(A, B, C) | 0;
+      H = G2;
+      G2 = F;
+      F = E;
+      E = D + T1 | 0;
+      D = C;
+      C = B;
+      B = A;
+      A = T1 + T2 | 0;
+    }
+    A = A + this.A | 0;
+    B = B + this.B | 0;
+    C = C + this.C | 0;
+    D = D + this.D | 0;
+    E = E + this.E | 0;
+    F = F + this.F | 0;
+    G2 = G2 + this.G | 0;
+    H = H + this.H | 0;
+    this.set(A, B, C, D, E, F, G2, H);
+  }
+  roundClean() {
+    clean(SHA256_W);
+  }
+  destroy() {
+    this.set(0, 0, 0, 0, 0, 0, 0, 0);
+    clean(this.buffer);
+  }
+};
+var _SHA256 = class extends SHA2_32B {
+  // We cannot use array here since array allows indexing by variable
+  // which means optimizer/compiler cannot use registers.
+  A = SHA256_IV[0] | 0;
+  B = SHA256_IV[1] | 0;
+  C = SHA256_IV[2] | 0;
+  D = SHA256_IV[3] | 0;
+  E = SHA256_IV[4] | 0;
+  F = SHA256_IV[5] | 0;
+  G = SHA256_IV[6] | 0;
+  H = SHA256_IV[7] | 0;
+  constructor() {
+    super(32);
+  }
+};
+var sha256 = /* @__PURE__ */ createHasher(
+  () => new _SHA256(),
+  /* @__PURE__ */ oidNist(1)
+);
+
+// src/model-files.js
+var LARGE_MODEL_ID = "onnx-community/whisper-large-v3-turbo";
+var LARGE_MODEL_REVISION = "360ebcde2559d60bb474678be3c1de9ef347d01a";
+var LARGE_MODEL_ASSETS = Object.freeze({
+  "added_tokens.json": 34648,
+  "config.json": 1332,
+  "generation_config.json": 3897,
+  "merges.txt": 493869,
+  "normalizer.json": 52666,
+  "preprocessor_config.json": 340,
+  "quantize_config.json": 285,
+  "special_tokens_map.json": 2186,
+  "tokenizer.json": 2480617,
+  "tokenizer_config.json": 282843,
+  "vocab.json": 1036558,
+  "onnx/encoder_model_q4f16.onnx": 369974078,
+  "onnx/decoder_model_merged_q4f16.onnx": 193505017
+});
+var LARGE_MODEL_SHA256 = Object.freeze({
+  "onnx/encoder_model_q4f16.onnx": "aafd3383f1aa372db0825a885730ebbbae7e34871ec0460428663c69641a63d0",
+  "onnx/decoder_model_merged_q4f16.onnx": "45981cdd958a4c8e1447839850d2e6e27e30974ccbe31b4a1e5ebe9ad8965a5f"
+});
+var MODEL_FOLDER = "whisper-large-v3-turbo-q4f16";
+var MANIFEST_NAME = "manifest.json";
+var modelUrl = (path, revision = LARGE_MODEL_REVISION) => `https://huggingface.co/${LARGE_MODEL_ID}/resolve/${revision}/${path}`;
+var totalBytes = (assets) => Object.values(assets).reduce((sum, size) => sum + size, 0);
+var hex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+async function hashStream(stream) {
+  const digest = sha256.create(), reader = stream.getReader();
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    digest.update(value);
+  }
+  return hex(digest.digest());
+}
+async function modelDirectory(root) {
+  if (!root?.getDirectoryHandle) throw new Error("Collega una cartella archivio prima di preparare il modello.");
+  const models = await root.getDirectoryHandle("modelli", { create: true });
+  return models.getDirectoryHandle(MODEL_FOLDER, { create: true });
+}
+async function fileAt(root, path, create = false) {
+  const parts = path.split("/");
+  let directory = root;
+  for (const part of parts.slice(0, -1)) directory = await directory.getDirectoryHandle(part, { create });
+  return directory.getFileHandle(parts.at(-1), { create });
+}
+async function readManifest(directory) {
+  try {
+    const file = await (await directory.getFileHandle(MANIFEST_NAME)).getFile();
+    const parsed = JSON.parse(await file.text());
+    if (parsed.schemaVersion === 1 && parsed.model === LARGE_MODEL_ID && parsed.revision === LARGE_MODEL_REVISION && parsed.assets && typeof parsed.assets === "object") return parsed;
+  } catch {
+  }
+  return { schemaVersion: 1, model: LARGE_MODEL_ID, revision: LARGE_MODEL_REVISION, assets: {} };
+}
+async function writeManifest(directory, manifest) {
+  const handle = await directory.getFileHandle(MANIFEST_NAME, { create: true });
+  const writer = await handle.createWritable();
+  await writer.write(JSON.stringify(manifest, null, 2));
+  await writer.close();
+}
+async function verifiedFile(directory, manifest, path, expectedSize, hashes) {
+  if (manifest.assets[path] !== expectedSize) return null;
+  try {
+    const file = await (await fileAt(directory, path)).getFile();
+    if (file.size !== expectedSize) return null;
+    const expectedHash = hashes[path];
+    if (expectedHash && await hashStream(file.stream()) !== expectedHash) return null;
+    return file;
+  } catch {
+    return null;
+  }
+}
+async function downloadFile(directory, path, expectedSize, fetcher, onProgress, alreadyLoaded, total, signal, hashes) {
+  const response = await fetcher(modelUrl(path), { cache: "no-store", signal });
+  if (!response.ok || !response.body) throw new Error(`Download ${path}: HTTP ${response.status}.`);
+  const contentLength = Number(response.headers.get("content-length"));
+  if (contentLength > 0 && contentLength !== expectedSize) throw new Error(`Dimensione remota di ${path} diversa dalla revisione fissata.`);
+  const handle = await fileAt(directory, path, true), writer = await handle.createWritable(), reader = response.body.getReader();
+  let loaded = 0;
+  const digest = hashes[path] ? sha256.create() : null;
+  try {
+    while (true) {
+      if (signal?.aborted) throw new DOMException("Download annullato", "AbortError");
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (!(value instanceof Uint8Array) || !value.length) continue;
+      if (loaded + value.length > expectedSize) throw new Error(`File ${path} supera la dimensione attesa.`);
+      digest?.update(value);
+      await writer.write({ type: "write", position: loaded, data: new Blob([value]) });
+      loaded += value.length;
+      onProgress?.({ path, loaded, expectedSize, completedBytes: alreadyLoaded + loaded, totalBytes: total });
+    }
+    if (loaded !== expectedSize) throw new Error(`File ${path} incompleto: ${loaded}/${expectedSize} byte.`);
+    if (digest && hex(digest.digest()) !== hashes[path]) throw new Error(`SHA-256 di ${path} diverso dalla revisione fissata.`);
+    await writer.close();
+    const saved = await handle.getFile();
+    if (saved.size !== expectedSize) throw new Error(`Verifica file ${path} fallita dopo la scrittura.`);
+  } catch (error) {
+    await reader.cancel().catch(() => {
+    });
+    await writer.abort?.().catch(() => {
+    });
+    throw error;
+  }
+}
+async function prepareLargeModelFiles(root, { fetcher = fetch, onProgress = () => {
+}, assets = LARGE_MODEL_ASSETS, hashes = LARGE_MODEL_SHA256, signal } = {}) {
+  const directory = await modelDirectory(root), manifest = await readManifest(directory), total = totalBytes(assets);
+  let completed = 0;
+  for (const [path, expectedSize] of Object.entries(assets)) {
+    if (signal?.aborted) throw new DOMException("Download annullato", "AbortError");
+    if (!Number.isSafeInteger(expectedSize) || expectedSize <= 0 || !/^(?:onnx\/)?[a-zA-Z0-9_.-]+$/.test(path)) throw new Error("Manifest modello non valido.");
+    if (await verifiedFile(directory, manifest, path, expectedSize, hashes)) {
+      completed += expectedSize;
+      onProgress({ path, loaded: expectedSize, expectedSize, completedBytes: completed, totalBytes: total, cached: true });
+      continue;
+    }
+    await downloadFile(directory, path, expectedSize, fetcher, onProgress, completed, total, signal, hashes);
+    manifest.assets[path] = expectedSize;
+    await writeManifest(directory, manifest);
+    completed += expectedSize;
+  }
+  return { directory, totalBytes: total, assetCount: Object.keys(assets).length };
+}
+async function createLargeModelCache(root, { assets = LARGE_MODEL_ASSETS, hashes = LARGE_MODEL_SHA256 } = {}) {
+  const directory = await modelDirectory(root);
+  return {
+    async match(request) {
+      const prefixes = [LARGE_MODEL_REVISION, "main"].map((revision) => `/${LARGE_MODEL_ID}/resolve/${revision}/`);
+      let url;
+      try {
+        url = new URL(typeof request === "string" ? request : request?.url);
+      } catch {
+        return void 0;
+      }
+      if (url.origin !== "https://huggingface.co") return void 0;
+      const prefix = prefixes.find((candidate) => url.pathname.startsWith(candidate));
+      if (!prefix) return void 0;
+      const path = decodeURIComponent(url.pathname.slice(prefix.length));
+      const expectedSize = assets[path];
+      if (!expectedSize) return void 0;
+      const manifest = await readManifest(directory), file = await verifiedFile(directory, manifest, path, expectedSize, hashes);
+      return file ? new Response(file.stream(), { headers: { "content-length": String(file.size), "content-type": path.endsWith(".json") ? "application/json" : "application/octet-stream" } }) : void 0;
+    },
+    async put(request) {
+      let url;
+      try {
+        url = new URL(typeof request === "string" ? request : request?.url, globalThis.location?.href);
+      } catch {
+      }
+      if (url?.origin === globalThis.location?.origin && /\/ort-wasm-simd-threaded\.asyncify\.(?:wasm|mjs)$/.test(url.pathname)) return;
+      throw new Error("I file del modello massimo si preparano solo con download esplicito nella cartella scelta.");
+    }
+  };
+}
+
+// src/browser-asr-entry.js
 env2.backends.onnx.wasm.wasmPaths = {
   mjs: new URL("./ort-wasm-simd-threaded.asyncify.mjs", import.meta.url).href,
   wasm: new URL("./ort-wasm-simd-threaded.asyncify.wasm", import.meta.url).href
 };
 async function loadWhisper(model, options = {}) {
-  progressCallback = options.progress_callback || null;
-  try {
-    return await pipeline2("automatic-speech-recognition", model, options);
-  } finally {
-    progressCallback = null;
+  const { modelDirectory: modelDirectory2, progress_callback, ...pipelineOptions } = options;
+  if (model === LARGE_MODEL_ID) {
+    await prepareLargeModelFiles(modelDirectory2, {
+      onProgress: ({ path, completedBytes, totalBytes: totalBytes2 }) => progress_callback?.({ status: "progress", file: path, progress: Math.round(completedBytes / totalBytes2 * 100) })
+    });
+    env2.customCache = await createLargeModelCache(modelDirectory2);
+    env2.useCustomCache = true;
+    env2.useBrowserCache = false;
+    env2.allowLocalModels = true;
+    env2.allowRemoteModels = false;
+    return pipeline2("automatic-speech-recognition", model, { ...pipelineOptions, revision: LARGE_MODEL_REVISION, local_files_only: true, progress_callback });
   }
+  env2.customCache = null;
+  env2.useCustomCache = false;
+  env2.useBrowserCache = true;
+  env2.allowLocalModels = false;
+  env2.allowRemoteModels = true;
+  return pipeline2("automatic-speech-recognition", model, { ...pipelineOptions, progress_callback });
 }
 export {
   loadWhisper
@@ -34379,4 +34799,7 @@ onnxruntime-web/dist/ort.webgpu.bundle.min.mjs:
    * Copyright (c) Microsoft Corporation. All rights reserved.
    * Licensed under the MIT License.
    *)
+
+@noble/hashes/utils.js:
+  (*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
 */
