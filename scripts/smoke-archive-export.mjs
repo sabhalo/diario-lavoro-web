@@ -34,6 +34,7 @@ try {
   const report = JSON.parse(execFileSync("python", ["-c", "import json,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); m=json.loads(z.read('manifest.json')); print(json.dumps({'runs':len(m['transcriptRuns']),'segments':len(m['transcriptSegments']),'text':z.read('trascrizione-attiva.txt').decode(),'raw':len([x for x in z.namelist() if x.startswith('frammenti/')])}))", zip], { encoding: "utf8" }));
   await page.locator("#view > header").getByRole("button", { name: "Rimuovi", exact: true }).click();
   await page.getByRole("button", { name: "Rimuovi dati locali" }).click();
+  await page.getByRole("heading", { name: "Nessuna sessione" }).waitFor();
   const afterDelete = await page.evaluate(async () => { const { FileArchive } = await import("/src/archive.js"); const archive = await FileArchive.open(await navigator.storage.getDirectory()); return { sessions: (await archive.all("sessions")).length, runs: (await archive.all("transcriptRuns")).length, segments: (await archive.all("transcriptSegments")).length }; });
   console.log(JSON.stringify({ ...report, afterDelete, errors }));
   if (errors.length || report.runs !== 2 || report.segments !== 2 || !report.text.includes("ciao corretto") || report.raw !== 1 || Object.values(afterDelete).some(Boolean)) process.exitCode = 1;

@@ -60,7 +60,7 @@ async function recoverInterrupted() {
 }
 
 function showNotice(text, tone = "") { const current = document.querySelector("#notice"); if (current) current.remove(); view.insertAdjacentHTML("afterbegin", `<div id="notice" class="callout ${tone}">${esc(text)}</div>`); }
-function setView(name) { state.view = name; document.querySelectorAll(".nav").forEach((button) => button.classList.toggle("active", button.dataset.view === name)); render(); }
+function setView(name) { state.view = name; document.querySelectorAll(".nav").forEach((button) => button.classList.toggle("active", button.dataset.view === name)); return render(); }
 
 async function render() {
   if (!state.store) return;
@@ -171,7 +171,7 @@ async function onSubmit(event) {
   if (form.dataset.form === "note" || form.dataset.form === "event") { const at = sessionOffset(session.startedAt); await state.store.put(form.dataset.form === "note" ? "notes" : "events", { id: id(form.dataset.form), sessionId: session.id, recordingId: state.recording?.id ?? null, text: data.get("text").trim(), startMs: at, createdAt: isoNow(), kind: form.dataset.form }); form.reset(); return renderCapture(); }
   if (form.dataset.form === "search") return runSearch(data);
   if (form.dataset.form === "edit-segment") return saveSegmentCorrection(data.get("segmentId"), data.get("text"));
-  if (form.dataset.form === "delete") { try { const result = await state.store.deleteSession(session.id); dialog.close(); state.selectedId = null; await updateStorage(); setView("home"); showNotice(`Sessione rimossa: ${result.recordings} tratti e ${result.chunks} blocchi rimossi dall’archivio controllato dall’app. Esportazioni o backup esterni non sono controllati dall’app.`, "warn"); } catch (error) { showNotice(`Rimozione non completata (${error.name || "errore"}): la sessione non è dichiarata rimossa. Riprova o conserva l’errore per verifica.`, "danger"); } }
+  if (form.dataset.form === "delete") { try { const result = await state.store.deleteSession(session.id); dialog.close(); state.selectedId = null; await updateStorage(); await setView("home"); showNotice(`Sessione rimossa: ${result.recordings} tratti e ${result.chunks} blocchi rimossi dall’archivio controllato dall’app. Esportazioni o backup esterni non sono controllati dall’app.`, "warn"); } catch (error) { showNotice(`Rimozione non completata (${error.name || "errore"}): la sessione non è dichiarata rimossa. Riprova o conserva l’errore per verifica.`, "danger"); } }
 }
 
 function openNewSession() { dialog.innerHTML = `<div class="dialog-body"><h2>Nuova sessione</h2><form data-form="new-session"><label>Titolo della sessione<input name="title" required maxlength="120" placeholder="Es. Preparazione presentazione"></label><p class="small muted">Può esistere senza cattura.</p><div class="actions"><button type="button" data-action="create-session">Crea</button><button class="secondary" type="button" onclick="this.closest('dialog').close()">Annulla</button></div></form></div>`; dialog.showModal(); }
