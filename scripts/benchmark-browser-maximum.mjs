@@ -21,13 +21,14 @@ try {
     return { model, adapter: adapter?.info || null, loadedSeconds, inferenceSeconds: (performance.now() - inferStarted) / 1000, transcript };
   }, samples);
   const online = await transcribe();
-  const cache = await page.evaluate(async () => ({ storage: await navigator.storage.estimate(), caches: await Promise.all((await caches.keys()).map(async (name) => { const area = await caches.open(name); return { name, files: await Promise.all((await area.keys()).map(async (request) => ({ name: new URL(request.url).pathname.split("/").pop(), length: (await area.match(request))?.headers.get("content-length") }))) }; })) }));
+  const cache = await page.evaluate(async () => ({ storage: await navigator.storage.estimate(), caches: await Promise.all((await caches.keys()).map(async (name) => ({ name, files: (await (await caches.open(name)).keys()).length }))) }));
   await page.reload();
   await page.route("**/*", (route) => ["127.0.0.1", "localhost"].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
   let offline;
   try { offline = await transcribe(); } catch (error) { offline = { error: String(error) }; }
   console.log(JSON.stringify({ online, cache, offline }));
-  if (offline.error) process.exitCode = 1;
+  const reference = "Aspettiamo un po', perché a volte ci vuole un po' di tempo.";
+  if (offline.error || online.transcript?.text?.trim() !== reference || offline.transcript?.text?.trim() !== reference) process.exitCode = 1;
 } finally {
   await browser.close();
 }
