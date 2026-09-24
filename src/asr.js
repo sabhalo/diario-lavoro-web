@@ -4,7 +4,7 @@ const WINDOW_SAMPLES = SAMPLE_RATE * 20;
 export const BROWSER_TIERS = {
   rapido: { label: "Rapido", model: "onnx-community/whisper-base", device: "wasm", dtype: "q8", estimate: "circa 80 MB di pesi ONNX, più runtime e metadati" },
   bilanciato: { label: "Bilanciato", model: "onnx-community/whisper-small", device: "wasm", dtype: "q8", estimate: "circa 250 MB di pesi ONNX, più runtime e metadati" },
-  massima: { label: "Massima qualità", model: "onnx-community/whisper-large-v3-turbo", device: "webgpu", dtype: "q4f16", estimate: "circa 563 MB di pesi ONNX, più runtime e metadati", gated: true },
+  massima: { label: "Massima qualità", model: "onnx-community/whisper-large-v3-turbo", device: "webgpu", dtype: "q4f16", estimate: "circa 563 MB di pesi ONNX; fino a circa 1 GB di cache, più runtime", gated: true },
 };
 
 export function validateLoopbackUrl(value) {

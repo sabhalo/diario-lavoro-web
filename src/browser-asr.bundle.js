@@ -34291,12 +34291,80 @@ var CONCRETE_DTYPES = Object.keys(DEFAULT_DTYPE_SUFFIX_MAPPING);
 
 // src/browser-asr-entry.js
 env2.useBrowserCache = true;
+var nativeFetch = globalThis.fetch.bind(globalThis);
+var LARGE_ENCODER = /^https:\/\/huggingface\.co\/onnx-community\/whisper-large-v3-turbo\/resolve\/[^/]+\/onnx\/encoder_model_q4f16\.onnx(?:\?.*)?$/;
+var LARGE_CACHE = "diario-asr-large-encoder-v1";
+var PART_BYTES = 16 * 1024 * 1024;
+var progressCallback = null;
+async function chunkedEncoderResponse(url, options) {
+  const base = `${globalThis.location.origin}/diario-model-cache/large-encoder-v1/`;
+  let cache2 = await caches.open(LARGE_CACHE);
+  const manifestResponse = await cache2.match(`${base}manifest.json`);
+  let manifest = manifestResponse && await manifestResponse.json().catch(() => null);
+  if (manifest?.url !== url || !Number.isSafeInteger(manifest.total) || !Number.isSafeInteger(manifest.parts) || manifest.total <= 0 || manifest.parts <= 0 || !(await Promise.all(Array.from({ length: manifest.parts }, (_, i) => cache2.match(`${base}${i}`)))).every(Boolean)) {
+    await caches.delete(LARGE_CACHE);
+    cache2 = await caches.open(LARGE_CACHE);
+    const response = await nativeFetch(url, options);
+    if (!response.ok || !response.body) return response;
+    const reader = response.body.getReader();
+    let pending = new Uint8Array(PART_BYTES), filled = 0, total = 0, parts = 0;
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        for (let offset = 0; offset < value.length; ) {
+          const count2 = Math.min(PART_BYTES - filled, value.length - offset);
+          pending.set(value.subarray(offset, offset + count2), filled);
+          filled += count2;
+          offset += count2;
+          total += count2;
+          if (filled === PART_BYTES) {
+            await cache2.put(`${base}${parts++}`, new Response(pending));
+            pending = new Uint8Array(PART_BYTES);
+            filled = 0;
+          }
+        }
+        const expected2 = Number(response.headers.get("content-length"));
+        if (expected2 > 0) progressCallback?.({ status: "progress", file: "encoder_model_q4f16.onnx", progress: Math.min(100, total / expected2 * 100) });
+      }
+      if (filled) await cache2.put(`${base}${parts++}`, new Response(pending.subarray(0, filled)));
+      const expected = Number(response.headers.get("content-length"));
+      if (!total || expected > 0 && total !== expected) throw new Error("Download del modello incompleto.");
+      manifest = { url, total, parts };
+      await cache2.put(`${base}manifest.json`, new Response(JSON.stringify(manifest), { headers: { "content-type": "application/json" } }));
+    } catch (error) {
+      await caches.delete(LARGE_CACHE);
+      throw error;
+    }
+  }
+  let next = 0;
+  return new Response(new ReadableStream({
+    async pull(controller) {
+      if (next === manifest.parts) {
+        controller.close();
+        return;
+      }
+      const part = await cache2.match(`${base}${next++}`);
+      if (!part) {
+        controller.error(new Error("Cache del modello incompleta."));
+        return;
+      }
+      controller.enqueue(new Uint8Array(await part.arrayBuffer()));
+    }
+  }), { headers: { "content-length": String(manifest.total), "content-type": "application/octet-stream" } });
+}
+env2.fetch = (url, options) => LARGE_ENCODER.test(String(url)) && globalThis.caches ? chunkedEncoderResponse(String(url), options) : nativeFetch(url, options);
 env2.backends.onnx.wasm.wasmPaths = {
   mjs: new URL("./ort-wasm-simd-threaded.asyncify.mjs", import.meta.url).href,
   wasm: new URL("./ort-wasm-simd-threaded.asyncify.wasm", import.meta.url).href
 };
 async function loadWhisper(model, options = {}) {
-  return pipeline2("automatic-speech-recognition", model, options);
+  progressCallback = options.progress_callback || null;
+  try {
+    return await pipeline2("automatic-speech-recognition", model, options);
+  } finally {
+    progressCallback = null;
+  }
 }
 export {
   loadWhisper

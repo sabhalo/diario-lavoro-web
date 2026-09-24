@@ -23,7 +23,7 @@ try {
   const online = await transcribe();
   const cache = await page.evaluate(async () => ({ storage: await navigator.storage.estimate(), caches: await Promise.all((await caches.keys()).map(async (name) => { const area = await caches.open(name); return { name, files: await Promise.all((await area.keys()).map(async (request) => ({ name: new URL(request.url).pathname.split("/").pop(), length: (await area.match(request))?.headers.get("content-length") }))) }; })) }));
   await page.reload();
-  await page.context().setOffline(true);
+  await page.route("**/*", (route) => ["127.0.0.1", "localhost"].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
   let offline;
   try { offline = await transcribe(); } catch (error) { offline = { error: String(error) }; }
   console.log(JSON.stringify({ online, cache, offline }));
