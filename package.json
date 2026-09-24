@@ -6,6 +6,7 @@
   "scripts": {
     "build:browser-asr": "node scripts/build-browser-asr.mjs",
     "smoke:browser": "node scripts/run-browser-smokes.mjs",
+    "smoke:maximum": "node scripts/run-browser-smokes.mjs --maximum",
     "test": "node --test"
   },
   "dependencies": {

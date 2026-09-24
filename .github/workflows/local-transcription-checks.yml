@@ -30,3 +30,20 @@ jobs:
       - run: npm test
       - run: python -m unittest discover -s local-asr -p 'test_*.py' -v
       - run: npm run smoke:browser
+
+  maximum-candidate:
+    if: github.ref == 'refs/heads/feature/local-transcription-planning'
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run build:browser-asr
+      - run: npm run smoke:maximum
