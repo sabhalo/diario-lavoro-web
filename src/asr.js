@@ -113,7 +113,7 @@ export async function* audioWindows(archive, media, signal, { windowSamples = WI
   element.addEventListener("error", () => { mediaError = new Error(`Decodifica media fallita (${element.error?.code || "sconosciuto"}).`); });
   try {
     await new Promise((resolve, reject) => { source.addEventListener("sourceopen", resolve, { once: true }); source.addEventListener("error", () => reject(new Error("Impossibile aprire MediaSource.")), { once: true }); });
-    const buffer = source.addSourceBuffer(media.format); buffer.mode = "sequence";
+    const buffer = source.addSourceBuffer(media.format); buffer.mode = "segments";
     let next = 0, started = false, lastProgressAt = performance.now(), lastTime = 0, lastPcm = 0, lastNext = 0;
     while (!ended || pcm.length || performance.now() - endedAt < 400) {
       if (signal?.aborted) throw new DOMException("Trascrizione annullata", "AbortError");
